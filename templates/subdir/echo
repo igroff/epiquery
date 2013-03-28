@@ -1,0 +1,1 @@
+select '{{ for(var prop in it) { }} {{=prop}}={{=it[prop]}} {{ } }}' as everything

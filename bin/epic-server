@@ -1,0 +1,141 @@
+#!/usr/bin/env ./node_modules/coffee-script/bin/coffee
+
+tedious = require 'tedious'
+path = require 'path'
+express = require 'express'
+fs = require 'fs'
+dot = require 'dot'
+util = require 'util'
+_ = require 'underscore'
+
+log = 
+  error: (message) -> util.log "[ERROR] #{message}"
+  info: (message) -> util.log "[INFO] #{message}"
+  warn: (message) -> util.log "[WARN] #{message}"
+  debug: (message) -> util.log "[DEBUG] #{message}"
+
+console.log = log.info
+
+
+sql_config =
+  userName: process.env.DB_USER
+  password: process.env.DB_PASSWORD
+  server:   process.env.DB_HOSTNAME
+  options:
+    port:   process.env.DB_PORT
+
+
+class EventListener
+  constructor: (@name) ->
+    @_waiting_for = {}
+
+  listen_for_event: (key) =>
+    @_waiting_for[key] = []
+    create_event_listener_for = (key) =>
+      () =>
+        args = _.toArray(arguments)
+        log.debug 'received event: ' + key + " args: " + JSON.stringify(args)
+        log.debug 'length: '+ args.length
+        if args.length is 0
+          # an event may have no data whatsoever, we'll use true to track
+          # that it has happened (really it's the non 0 length of the array)
+          @_waiting_for[key].push(true)
+        else if args.length is 1
+          # we're 'helpful' in that if we only ahve a single argument, we'll
+          # add it directly instead of allowing it to be wrapped in the arguments
+          # array
+          @_waiting_for[key].push(args[0])
+        else
+          @_waiting_for[key].push(args)
+    create_event_listener_for key
+
+  listen_for_callback: (key) =>
+    @_waiting_for[key] = []
+    create_callback_listener_for = (key) =>
+      () =>
+        args = _.toArray(arguments)
+        if args[0] isnt null
+          log.error 'received callback: ' + key + " args: " + JSON.stringify(args)
+        else
+          log.info 'received callback: ' + key + " args: " + JSON.stringify(args)
+        @_waiting_for[key] = args
+    create_callback_listener_for key
+
+  waitForAll: () =>
+    if typeof(arguments[0]) is "function"
+      events = []
+      callback = arguments[0]
+    else
+      events = arguments[0]
+      callback = arguments[1]
+    check_for_completion = () =>
+      all_done = true
+      if events.length is 0
+        for own _, value of @_waiting_for
+          if value.length is 0
+            all_done = false
+      else
+        for event in events
+          # someone may want to wait on an event that is yet to be 
+          # added, so... let 'em
+          if typeof(@_waiting_for[event]) is "undefined"
+            @_waiting_for[event] = []
+          if @_waiting_for[event].length is 0
+            all_done = false
+      all_done
+    if check_for_completion()
+      callback()
+    else
+      setTimeout( (() => @.waitForAll(events, callback)), 10 )
+
+  get: (key) =>
+    if typeof(@_waiting_for[key]) is "undefined"
+      return null
+    return @_waiting_for[key]
+
+exec_query = (template, template_context, callback) ->
+  query_info = new EventListener 'query!'
+  conn = new tedious.Connection sql_config
+  conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
+  conn.on 'connect', query_info.listen_for_event 'connected'
+  conn.on 'end', query_info.listen_for_event 'connection-end'
+
+  # just keeping the template around for reference
+  query_info.template = template
+  fs.readFile(path.join(process.cwd(), 'templates', template),
+    {encoding:'utf8'},
+    query_info.listen_for_callback 'template-loaded')
+
+  query_info.waitForAll ['template-loaded', 'connected'], () ->
+    templateFn = dot.template query_info.get('template-loaded')[1]
+    rendered = templateFn template_context
+    log.debug "rendered template: #{rendered}"
+    request = new tedious.Request(rendered, query_info.listen_for_callback('request-complete'))
+    request.on 'row', query_info.listen_for_event 'received-row'
+    conn.execSql request
+
+  query_info.waitForAll ['request-complete'], () ->
+    query_info.return_count = query_info.get('request-complete')[1]
+    conn.close()
+  query_info.waitForAll ['connection-end'], () ->
+    callback(query_info)
+
+escape_for_sql = (value) ->
+  if isNaN value
+    value = value.replace(/'/g, "''")
+  value
+
+app = express()
+app.get '*', (req, resp) ->
+  context = _.extend {}, req.body, req.query
+  _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
+  # we allow people to provide any path relative to the templates directory
+  # so we'll remove the initial / and keep the rest of the path while conveniently
+  # dropping any parent indicators (..)
+  exec_query req.path[1..].replace(/\.\./g, ''), context, (o) ->
+    rows = o.get 'received-row'
+    resp.send _.map rows, (columns) -> 
+      _.object _.map columns, (column) ->
+        [column.metadata.colName, column.value]
+       
+app.listen 8080
