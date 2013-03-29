@@ -98,8 +98,6 @@ exec_query = (template, template_context, callback) ->
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
   conn.on 'connect', query_info.listen_for_event 'connected'
 
-  # just keeping the template around for reference
-  query_info.template = template
   fs.readFile(path.join(process.cwd(), 'templates', template),
     {encoding:'utf8'},
     query_info.listen_for_callback 'template-loaded')
