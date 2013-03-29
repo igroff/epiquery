@@ -85,7 +85,7 @@ class EventListener
     if check_for_completion()
       callback()
     else
-      setTimeout( (() => @.waitForAll(events, callback)), 10 )
+      setImmediate( (() => @.waitForAll(events, callback)), 10 )
 
   get: (key) =>
     if typeof(@_waiting_for[key]) is "undefined"
