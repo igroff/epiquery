@@ -1,21 +1,20 @@
 #!/usr/bin/env ./node_modules/coffee-script/bin/coffee
 
-tedious = require 'tedious'
-path = require 'path'
-express = require 'express'
-fs = require 'fs'
-dot = require 'dot'
-util = require 'util'
-_ = require 'underscore'
+tedious =   require 'tedious'
+path =      require 'path'
+express =   require 'express'
+fs =        require 'fs'
+dot =       require 'dot'
+util =      require 'util'
+_ =         require 'underscore'
 
 log = 
   error: (message) -> util.log "[ERROR] #{message}"
-  info: (message) -> util.log "[INFO] #{message}"
-  warn: (message) -> util.log "[WARN] #{message}"
+  info:  (message) -> util.log "[INFO] #{message}"
+  warn:  (message) -> util.log "[WARN] #{message}"
   debug: (message) -> util.log "[DEBUG] #{message}"
 
 console.log = log.info
-
 
 sql_config =
   userName: process.env.npm_package_config_db_user
@@ -98,13 +97,13 @@ exec_query = (template, template_context, callback) ->
   conn = new tedious.Connection sql_config
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
   conn.on 'connect', query_info.listen_for_event 'connected'
-  conn.on 'end', query_info.listen_for_event 'connection-end'
 
   # just keeping the template around for reference
   query_info.template = template
   fs.readFile(path.join(process.cwd(), 'templates', template),
     {encoding:'utf8'},
     query_info.listen_for_callback 'template-loaded')
+
 
   query_info.waitForAll ['template-loaded', 'connected'], () ->
     templateFn = dot.template query_info.get('template-loaded')[1]
@@ -116,9 +115,8 @@ exec_query = (template, template_context, callback) ->
 
   query_info.waitForAll ['request-complete'], () ->
     query_info.return_count = query_info.get('request-complete')[1]
-    conn.close()
-  query_info.waitForAll ['connection-end'], () ->
     callback(query_info)
+    conn.close()
 
 escape_for_sql = (value) ->
   if isNaN value
