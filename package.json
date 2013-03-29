@@ -1,5 +1,5 @@
 {
-  "name": "epic-query",
+  "name": "epicquery",
   "version": "0.0.1",
   "description": "run templated queries from the https",
   "main": "./bin/epic-server",
@@ -13,8 +13,19 @@
     "tedious": "0.1.3",
     "dot": "1.0.1"
   },
+  "config": {
+    "db_port":"",
+    "db_host":"",
+    "db_user":"",
+    "db_password":"",
+    "http_port":"8080"
+  },
   "engine": {
     "node": "0.10.1"
+  },
+  "repository": {
+    "type": "git",
+    "url":  "git://github.com/intimonkey/epic-query.git"
   },
   "scripts": {
     "start": "./node_modules/forever/bin/forever --watchDirectory ./bin --watch --append -c ./node_modules/coffee-script/bin/coffee bin/epic-server",
