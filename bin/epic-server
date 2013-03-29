@@ -60,6 +60,11 @@ class EventListener
         @_waiting_for[key] = args
     create_callback_listener_for key
 
+  # waiting is the wrong wrong wrong model, instead change this to something like
+  # onCompletionOf [], ()
+  # and hook the provided callback up to the completion of the 'events' listed
+  # when it's added we can check for completion and fire immediately or hook into 
+  # the named callback
   waitForAll: () =>
     if typeof(arguments[0]) is "function"
       events = []
