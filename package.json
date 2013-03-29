@@ -13,6 +13,9 @@
     "tedious": "0.1.3",
     "dot": "1.0.1"
   },
+  "bin": {
+
+  },
   "config": {
     "db_port":"",
     "db_host":"",
