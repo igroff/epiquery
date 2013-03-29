@@ -114,7 +114,6 @@ exec_query = (template, template_context, callback) ->
     conn.execSql request
 
   query_info.waitForAll ['request-complete'], () ->
-    query_info.return_count = query_info.get('request-complete')[1]
     callback(query_info)
     conn.close()
 
