@@ -26,48 +26,82 @@ sql_config =
 class EventCollector
   constructor: (@name) ->
     # a list to keep track of the folks waiting to be notified of 'things'
-    @waiters = []
     # a waiter looks like
     # {interested_in: [list of events], alerted: false, callback: function}
-
+    @_waiters = []
 
     # a list of the events and callbacks that have been recieved
     # traversing this is how we see if a waiter needs to be alerted
     # this is a simple list of event names (strings)
-    @events_raised = []
+    @_events_raised = {}
 
     # a list of the events that we are tracking i.e. waiting to 
-    # be raised.  when an event is added for listening i.e.
-    # listen_for_event is called, the event is added here
-    # when the event takes place it's entered into events_raised
-    @events_tracking = []
+    # be raised
+    @_events_tracking = []
+
+    # data received from raising of events or triggering of callbacsk
+    # this is just the args (as an array) from the invoked listener
+    @_data_for_event = {}
 
   _alert_interested_waiters: () =>
     # here we loop through the waiters to see if the conditions any 
     # are waiting for have been met
+    for waiter in @_waiters
+      if waiter.alerted isnt true
+        tripped = []
+        # check to see if the events we're waiting on for this waiter
+        # have been raised
+        for event_waited_on in waiter.interested_in
+          if @_events_raised[event_waited_on] is true
+            tripped.push(event_waited_on)
+        if tripped.length is waiter.interested_in.length
+          waiter.callback(tripped)
+          waiter.alterted = true
 
   listen_for_event: (named) =>
-    # like the EventListener we create an event listener
-    # ( a function that we return ) 
-    # that will collect the args of the event
-    # and
-    # @_alert_interested_waiters
+    @_events_tracking.push named
+    @_data_for_event[named] = []
+    create_event_listener = (named) =>
+      () =>
+        args = _.toArray(arguments)
+        log.debug 'received event: ' + named + " args: " + JSON.stringify(args)
+        log.debug 'length: '+ args.length
+        if args.length is 0
+          @_data_for_event[named].push(null)
+        else if args.length is 1
+          # we're 'helpful' in that if we only ahve a single argument, we'll
+          # add it directly instead of allowing it to be wrapped in the arguments
+          # array
+          @_data_for_event[named].push(args[0])
+        else
+          @_data_for_event[named].push(args)
+        @_events_raised[named] = true
+        @_alert_interested_waiters()
+    create_event_listener named
 
   listen_for_callback: (named) =>
-    # just like listen for event we create a listener that 
-    # will collect the callback args and log any errors as necessary
-    # and
-    # @_alert_interested_waiters
-
-  # HERE'S THE BIG CHANGE
-  wait_for_all: (events, callback) =>
-    # add this dude to the list of waiters
-    # and
-    # @_alert_interested_waiters
-    #
+    @_events_tracking.push named
+    @_data_for_event[named] = []
+    create_callback_listener = (named) =>
+      () =>
+        args = _.toArray(arguments)
+        if args[0] isnt null
+          log.error 'received callback: ' + named + " args: " + JSON.stringify(args)
+        else
+          log.info 'received callback: ' + named + " args: " + JSON.stringify(args)
+        @_events_raised[named] = true
+        @_data_for_event[named] = args
+        @_alert_interested_waiters()
+    create_callback_listener named
+        
+  waitForEvents: (events, callback) =>
+    @_waiters.push {interested_in: events, alerted: false, callback: callback}
+    @_alert_interested_waiters()
 
   get: (key) =>
-    # same as for EventListener
+    if typeof(@_data_for_event[key]) is "undefined"
+      return null
+    return @_data_for_event[key]
 
 class EventListener
   constructor: (@name) ->
@@ -110,7 +144,7 @@ class EventListener
   # and hook the provided callback up to the completion of the 'events' listed
   # when it's added we can check for completion and fire immediately or hook into 
   # the named callback
-  waitForAll: () =>
+  waitForEvents: () =>
     if typeof(arguments[0]) is "function"
       events = []
       callback = arguments[0]
@@ -135,7 +169,7 @@ class EventListener
     if check_for_completion()
       callback()
     else
-      setImmediate( (() => @.waitForAll(events, callback)), 10 )
+      setImmediate( (() => @.waitForEvents(events, callback)), 10 )
 
   get: (key) =>
     if typeof(@_waiting_for[key]) is "undefined"
@@ -143,17 +177,18 @@ class EventListener
     return @_waiting_for[key]
 
 exec_query = (template, template_context, callback) ->
-  query_info = new EventListener 'query!'
+  query_info = new EventCollector 'query!'
   conn = new tedious.Connection sql_config
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
   conn.on 'connect', query_info.listen_for_event 'connected'
+  conn.on 'end', query_info.listen_for_event 'connection-end'
 
   fs.readFile(path.join(process.cwd(), 'templates', template),
     {encoding:'utf8'},
     query_info.listen_for_callback 'template-loaded')
 
 
-  query_info.waitForAll ['template-loaded', 'connected'], () ->
+  query_info.waitForEvents ['template-loaded', 'connected'], () ->
     templateFn = dot.template query_info.get('template-loaded')[1]
     rendered = templateFn template_context
     log.debug "rendered template: #{rendered}"
@@ -161,9 +196,10 @@ exec_query = (template, template_context, callback) ->
     request.on 'row', query_info.listen_for_event 'received-row'
     conn.execSql request
 
-  query_info.waitForAll ['request-complete'], () ->
-    callback(query_info)
+  query_info.waitForEvents ['request-complete'], () ->
     conn.close()
+  query_info.waitForEvents ['connection-end'], () ->
+    callback(query_info)
 
 escape_for_sql = (value) ->
   if isNaN value
