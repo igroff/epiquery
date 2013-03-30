@@ -23,6 +23,51 @@ sql_config =
   options:
     port:   process.env.npm_package_config_db_port
 
+class EventCollector
+  constructor: (@name) ->
+    # a list to keep track of the folks waiting to be notified of 'things'
+    @waiters = []
+    # a waiter looks like
+    # {interested_in: [list of events], alerted: false, callback: function}
+
+
+    # a list of the events and callbacks that have been recieved
+    # traversing this is how we see if a waiter needs to be alerted
+    # this is a simple list of event names (strings)
+    @events_raised = []
+
+    # a list of the events that we are tracking i.e. waiting to 
+    # be raised.  when an event is added for listening i.e.
+    # listen_for_event is called, the event is added here
+    # when the event takes place it's entered into events_raised
+    @events_tracking = []
+
+  _alert_interested_waiters: () =>
+    # here we loop through the waiters to see if the conditions any 
+    # are waiting for have been met
+
+  listen_for_event: (named) =>
+    # like the EventListener we create an event listener
+    # ( a function that we return ) 
+    # that will collect the args of the event
+    # and
+    # @_alert_interested_waiters
+
+  listen_for_callback: (named) =>
+    # just like listen for event we create a listener that 
+    # will collect the callback args and log any errors as necessary
+    # and
+    # @_alert_interested_waiters
+
+  # HERE'S THE BIG CHANGE
+  wait_for_all: (events, callback) =>
+    # add this dude to the list of waiters
+    # and
+    # @_alert_interested_waiters
+    #
+
+  get: (key) =>
+    # same as for EventListener
 
 class EventListener
   constructor: (@name) ->
