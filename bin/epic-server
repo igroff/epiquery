@@ -65,7 +65,7 @@ class DeferManager
 
   logState: () =>
     _.each @requested, (value,name,o) ->
-      log.debug name + ": {hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
+      log.debug name + ": {data:\"#{value.deferred.promise.get(0)}\", hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
 
 
 exec_query = (template, template_context, callback) ->
@@ -83,10 +83,9 @@ exec_query = (template, template_context, callback) ->
 
 
   log.info 'setting handler for template load and connect'
-  Q.all(manager.getPromises(['template', 'connect'])).then(
-    () ->
-      log.info 'primary handler invoked'
-      templateFn = dot.template manager.get(template)[1]
+  Q.all(manager.getPromises(['template', 'connect'])).spread(
+    (template) ->
+      templateFn = dot.template template
       rendered = templateFn template_context
       log.debug "rendered template: #{rendered}"
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
