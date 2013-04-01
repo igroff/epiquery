@@ -29,71 +29,75 @@ class DeferManager
     @requested = {}
 
   createEventResolver: (name) =>
-    deferred = Q.defer()
-    @requested[name] = deferred
+    o = @_get name
+    deferred = o.deferred
+    o.hooked = true
     createHandler = (deferred) =>
       () =>
         deferred.resolve()
     createHandler deferred
 
   createCallbackHandler: (name) =>
-    deferred = Q.defer()
-    @requested[name] = deferred
-    deferred.createNodeResolver()
+    o = @_get name
+    deferred = o.deferred
+    o.hooked = true
+    deferred.makeNodeResolver()
 
+  _get: (name) =>
+    if typeof(@requested[name]) is "undefined"
+      @requested[name] = {deferred: Q.defer(), hooked: false}
+    @requested[name]
+
+  get: (name) =>
+    @_get(name).deferred
+
+  getPromises: (name_or_list) =>
+    names = name_or_list
+    promises = []
+    if not _.isArray(name_or_list)
+      names = [name_or_list]
+    for name in names
+      promises.push @get(name).promise
+    if promises.length is 1
+      return promises[0]
+    else
+      return promises
 
   logState: () =>
-    for name in @requested
-      log.debug "#{name} -> pending: #{@requested.name.isPending()}"
+    _.each @requested, (value,name,o) ->
+      log.debug name + ": {hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
 
-
-
-
-  
 
 exec_query = (template, template_context, callback) ->
+  manager = new DeferManager('mine')
   # our messages
-  e_connect = Q.defer()
-  e_connect_end = Q.defer()
-  e_template_load = Q.defer()
-  e_request_complete = Q.defer()
   row_data = []
   conn = new tedious.Connection sql_config
-  log.info 'connection created'
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
-  log.info 'connect: ' + e_connect.promise.isPending()
-  conn.on 'connect', () -> e_connect.resolve()
-  log.info 'connect event hooked'
-  conn.on 'end', () -> e_connect_end.resolve()
-  log.info 'end event hooked'
+  conn.on 'connect', manager.createEventResolver 'connect'
+  conn.on 'end', manager.createEventResolver 'connect-end'
 
   fs.readFile(path.join(process.cwd(), 'templates', template),
     {encoding:'utf8'},
-    e_template_load.makeNodeResolver())
-  log.info 'template read hooked'
+    manager.createCallbackHandler 'template')
 
 
   log.info 'setting handler for template load and connect'
-  Q.all([e_template_load.promise, e_connect.promise]).then(
+  Q.all(manager.getPromises(['template', 'connect'])).then(
     () ->
       log.info 'primary handler invoked'
-      log.info 'template: ' + e_template_load.promise.isPending()
-      log.info 'connect:  ' + e_connect.promise.isPending()
-      templateFn = dot.template e_template_load.get(1)
+      templateFn = dot.template manager.get(template)[1]
       rendered = templateFn template_context
       log.debug "rendered template: #{rendered}"
-      request = new tedious.Request(rendered, e_request_complete)
+      request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
       request.on 'row', (columns) -> row_data.push(columns)
       conn.execSql request
   )
 
-  log.info 'request complete handler hooked'
-  e_request_complete.promise.then () ->
-    log.info 'request complete handler invoked'
+  manager.getPromises('request-complete').then () ->
     conn.close()
-  log.info 'connect end handler hooked'
-  e_connect_end.promise.then () ->
-    log.info 'connect end handler invoked'
+  manager.getPromises('connect-end').then () ->
+    manager.logState()
     callback(row_data)
 
 escape_for_sql = (value) ->
