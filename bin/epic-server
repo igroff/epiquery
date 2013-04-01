@@ -7,6 +7,7 @@ fs =        require 'fs'
 dot =       require 'dot'
 util =      require 'util'
 _ =         require 'underscore'
+Q =         require 'q'
 
 log = 
   error: (message) -> util.log "[ERROR] #{message}"
@@ -23,183 +24,77 @@ sql_config =
   options:
     port:   process.env.npm_package_config_db_port
 
-class EventCollector
+class DeferManager
   constructor: (@name) ->
-    # a list to keep track of the folks waiting to be notified of 'things'
-    # a waiter looks like
-    # {interested_in: [list of events], alerted: false, callback: function}
-    @_waiters = []
+    @requested = {}
 
-    # a list of the events and callbacks that have been recieved
-    # traversing this is how we see if a waiter needs to be alerted
-    # this is a simple list of event names (strings)
-    @_events_raised = {}
-
-    # a list of the events that we are tracking i.e. waiting to 
-    # be raised
-    @_events_tracking = []
-
-    # data received from raising of events or triggering of callbacsk
-    # this is just the args (as an array) from the invoked listener
-    @_data_for_event = {}
-
-  _alert_interested_waiters: () =>
-    # here we loop through the waiters to see if the conditions any 
-    # are waiting for have been met
-    for waiter in @_waiters
-      if waiter.alerted isnt true
-        tripped = []
-        # check to see if the events we're waiting on for this waiter
-        # have been raised
-        for event_waited_on in waiter.interested_in
-          if @_events_raised[event_waited_on] is true
-            tripped.push(event_waited_on)
-        if tripped.length is waiter.interested_in.length
-          waiter.callback(tripped)
-          waiter.alterted = true
-
-  listen_for_event: (named) =>
-    @_events_tracking.push named
-    @_data_for_event[named] = []
-    create_event_listener = (named) =>
+  createEventResolver: (name) =>
+    deferred = Q.defer()
+    @requested[name] = deferred
+    createHandler = (deferred) =>
       () =>
-        args = _.toArray(arguments)
-        log.debug 'received event: ' + named + " args: " + JSON.stringify(args)
-        log.debug 'length: '+ args.length
-        if args.length is 0
-          @_data_for_event[named].push(null)
-        else if args.length is 1
-          # we're 'helpful' in that if we only ahve a single argument, we'll
-          # add it directly instead of allowing it to be wrapped in the arguments
-          # array
-          @_data_for_event[named].push(args[0])
-        else
-          @_data_for_event[named].push(args)
-        @_events_raised[named] = true
-        @_alert_interested_waiters()
-    create_event_listener named
+        deferred.resolve()
+    createHandler deferred
 
-  listen_for_callback: (named) =>
-    @_events_tracking.push named
-    @_data_for_event[named] = []
-    create_callback_listener = (named) =>
-      () =>
-        args = _.toArray(arguments)
-        if args[0] isnt null
-          log.error 'received callback: ' + named + " args: " + JSON.stringify(args)
-        else
-          log.info 'received callback: ' + named + " args: " + JSON.stringify(args)
-        @_events_raised[named] = true
-        @_data_for_event[named] = args
-        @_alert_interested_waiters()
-    create_callback_listener named
-        
-  waitForEvents: (events, callback) =>
-    @_waiters.push {interested_in: events, alerted: false, callback: callback}
-    @_alert_interested_waiters()
+  createCallbackHandler: (name) =>
+    deferred = Q.defer()
+    @requested[name] = deferred
+    deferred.createNodeResolver()
 
-  get: (key) =>
-    if typeof(@_data_for_event[key]) is "undefined"
-      return null
-    return @_data_for_event[key]
 
-class EventListener
-  constructor: (@name) ->
-    @_waiting_for = {}
+  logState: () =>
+    for name in @requested
+      log.debug "#{name} -> pending: #{@requested.name.isPending()}"
 
-  listen_for_event: (key) =>
-    @_waiting_for[key] = []
-    create_event_listener_for = (key) =>
-      () =>
-        args = _.toArray(arguments)
-        log.debug 'received event: ' + key + " args: " + JSON.stringify(args)
-        log.debug 'length: '+ args.length
-        if args.length is 0
-          # an event may have no data whatsoever, we'll use true to track
-          # that it has happened (really it's the non 0 length of the array)
-          @_waiting_for[key].push(true)
-        else if args.length is 1
-          # we're 'helpful' in that if we only ahve a single argument, we'll
-          # add it directly instead of allowing it to be wrapped in the arguments
-          # array
-          @_waiting_for[key].push(args[0])
-        else
-          @_waiting_for[key].push(args)
-    create_event_listener_for key
 
-  listen_for_callback: (key) =>
-    @_waiting_for[key] = []
-    create_callback_listener_for = (key) =>
-      () =>
-        args = _.toArray(arguments)
-        if args[0] isnt null
-          log.error 'received callback: ' + key + " args: " + JSON.stringify(args)
-        else
-          log.info 'received callback: ' + key + " args: " + JSON.stringify(args)
-        @_waiting_for[key] = args
-    create_callback_listener_for key
 
-  # waiting is the wrong wrong wrong model, instead change this to something like
-  # onCompletionOf [], ()
-  # and hook the provided callback up to the completion of the 'events' listed
-  # when it's added we can check for completion and fire immediately or hook into 
-  # the named callback
-  waitForEvents: () =>
-    if typeof(arguments[0]) is "function"
-      events = []
-      callback = arguments[0]
-    else
-      events = arguments[0]
-      callback = arguments[1]
-    check_for_completion = () =>
-      all_done = true
-      if events.length is 0
-        for own _, value of @_waiting_for
-          if value.length is 0
-            all_done = false
-      else
-        for event in events
-          # someone may want to wait on an event that is yet to be 
-          # added, so... let 'em
-          if typeof(@_waiting_for[event]) is "undefined"
-            @_waiting_for[event] = []
-          if @_waiting_for[event].length is 0
-            all_done = false
-      all_done
-    if check_for_completion()
-      callback()
-    else
-      setImmediate( (() => @.waitForEvents(events, callback)), 10 )
 
-  get: (key) =>
-    if typeof(@_waiting_for[key]) is "undefined"
-      return null
-    return @_waiting_for[key]
+  
 
 exec_query = (template, template_context, callback) ->
-  query_info = new EventCollector 'query!'
+  # our messages
+  e_connect = Q.defer()
+  e_connect_end = Q.defer()
+  e_template_load = Q.defer()
+  e_request_complete = Q.defer()
+  row_data = []
   conn = new tedious.Connection sql_config
+  log.info 'connection created'
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
-  conn.on 'connect', query_info.listen_for_event 'connected'
-  conn.on 'end', query_info.listen_for_event 'connection-end'
+  log.info 'connect: ' + e_connect.promise.isPending()
+  conn.on 'connect', () -> e_connect.resolve()
+  log.info 'connect event hooked'
+  conn.on 'end', () -> e_connect_end.resolve()
+  log.info 'end event hooked'
 
   fs.readFile(path.join(process.cwd(), 'templates', template),
     {encoding:'utf8'},
-    query_info.listen_for_callback 'template-loaded')
+    e_template_load.makeNodeResolver())
+  log.info 'template read hooked'
 
 
-  query_info.waitForEvents ['template-loaded', 'connected'], () ->
-    templateFn = dot.template query_info.get('template-loaded')[1]
-    rendered = templateFn template_context
-    log.debug "rendered template: #{rendered}"
-    request = new tedious.Request(rendered, query_info.listen_for_callback('request-complete'))
-    request.on 'row', query_info.listen_for_event 'received-row'
-    conn.execSql request
+  log.info 'setting handler for template load and connect'
+  Q.all([e_template_load.promise, e_connect.promise]).then(
+    () ->
+      log.info 'primary handler invoked'
+      log.info 'template: ' + e_template_load.promise.isPending()
+      log.info 'connect:  ' + e_connect.promise.isPending()
+      templateFn = dot.template e_template_load.get(1)
+      rendered = templateFn template_context
+      log.debug "rendered template: #{rendered}"
+      request = new tedious.Request(rendered, e_request_complete)
+      request.on 'row', (columns) -> row_data.push(columns)
+      conn.execSql request
+  )
 
-  query_info.waitForEvents ['request-complete'], () ->
+  log.info 'request complete handler hooked'
+  e_request_complete.promise.then () ->
+    log.info 'request complete handler invoked'
     conn.close()
-  query_info.waitForEvents ['connection-end'], () ->
-    callback(query_info)
+  log.info 'connect end handler hooked'
+  e_connect_end.promise.then () ->
+    log.info 'connect end handler invoked'
+    callback(row_data)
 
 escape_for_sql = (value) ->
   if isNaN value
@@ -213,8 +108,7 @@ app.get '*', (req, resp) ->
   # we allow people to provide any path relative to the templates directory
   # so we'll remove the initial / and keep the rest of the path while conveniently
   # dropping any parent indicators (..)
-  exec_query req.path[1..].replace(/\.\./g, ''), context, (o) ->
-    rows = o.get 'received-row'
+  exec_query req.path[1..].replace(/\.\./g, ''), context, (rows) ->
     resp.send _.map rows, (columns) -> 
       _.object _.map columns, (column) ->
         [column.metadata.colName, column.value]
