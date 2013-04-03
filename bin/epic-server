@@ -17,12 +17,14 @@ log =
 
 console.log = log.info
 
-sql_config =
-  userName: process.env.npm_package_config_db_user
-  password: process.env.npm_package_config_db_password
-  server:   process.env.npm_package_config_db_host
-  options:
-    port:   process.env.npm_package_config_db_port
+config =
+  sql:
+    userName: process.env.npm_package_config_db_user
+    password: process.env.npm_package_config_db_password
+    server:   process.env.npm_package_config_db_host
+    options:
+      port:   process.env.npm_package_config_db_port
+  template_directory: process.env.npm_package_config_template_directory
 
 class DeferManager
   constructor: (@name) ->
@@ -31,6 +33,7 @@ class DeferManager
   _trackerToString: (tracker) ->
     log_items =
       name: tracker.name
+      data: tracker.deferred.promise.valueOf()
       hooked: tracker.hooked
       isPending: tracker.deferred.promise.isPending()
       isRejected: tracker.deferred.promise.isRejected()
@@ -91,12 +94,12 @@ class DeferManager
 exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('mine')
   row_data = []
-  conn = new tedious.Connection sql_config
+  conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
 
-  fs.readFile(path.join(process.cwd(), 'templates', template_name),
+  fs.readFile(path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'},
     manager.createCallbackHandler 'template')
 
@@ -111,12 +114,20 @@ exec_query = (template_name, template_context, callback) ->
       conn.execSql request
   )
 
+  manager.getPromise('connect-end').then () ->
+    # this is silly, but... there's a case where tedious will fail to
+    # connect but not raise a connect(err) event instead going strait to
+    # raising 'end'.  So from the normal processing path, this should be
+    # raised by the close of the connection which is done on the request-complete
+    # trigger and we should then be done anyway so this will simply be redundant
+    manager._getTrackerNamed('connect').deferred.resolve()
+
   manager.allPromised().then(
-    () -> callback null, row_data )
-  .fail () ->
+    () ->
+      callback null, row_data
+  ).fail () ->
     log.error arguments[0]
     callback arguments[0], row_data
-
 
 escape_for_sql = (value) ->
   if isNaN value
@@ -138,5 +149,5 @@ app.get '*', (req, resp) ->
         [column.metadata.colName, column.value]
        
 
-log.debug JSON.stringify sql_config
+log.debug JSON.stringify config
 app.listen process.env.npm_package_config_http_port
