@@ -28,28 +28,41 @@ class DeferManager
   constructor: (@name) ->
     @requested = {}
 
+  _trackerToString: (tracker) ->
+    log_items =
+      name: tracker.name
+      hooked: tracker.hooked
+      isPending: tracker.deferred.promise.isPending()
+      isRejected: tracker.deferred.promise.isRejected()
+      isFulfilled: tracker.deferred.promise.isFulfilled()
+    JSON.stringify(log_items)
+
   createEventResolver: (name) =>
-    o = @_get name
-    deferred = o.deferred
-    o.hooked = true
-    createHandler = (deferred) =>
+    tracker = @_getTrackerNamed name
+    tracker.hooked = true
+    createHandler = (tracker) =>
       () =>
-        deferred.resolve()
-    createHandler deferred
+        tracker.deferred.resolve()
+    createHandler tracker
 
   createCallbackHandler: (name) =>
-    o = @_get name
-    deferred = o.deferred
+    o = @_getTrackerNamed name
     o.hooked = true
-    deferred.makeNodeResolver()
+    o.deferred.makeNodeResolver()
 
-  _get: (name) =>
+  _getTrackerNamed: (name) =>
     if typeof(@requested[name]) is "undefined"
-      @requested[name] = {deferred: Q.defer(), hooked: false}
+      deferred = Q.defer()
+      tracker =
+        deferred: deferred,
+        hooked: false,
+        name: name
+      deferred.promise.fin () => log.debug @_trackerToString tracker
+      @requested[name] = tracker
     @requested[name]
 
-  get: (name) =>
-    @_get(name).deferred
+  getPromise: (name) =>
+    @getPromises(name)
 
   getPromises: (name_or_list) =>
     names = name_or_list
@@ -57,47 +70,51 @@ class DeferManager
     if not _.isArray(name_or_list)
       names = [name_or_list]
     for name in names
-      promises.push @get(name).promise
+      promises.push @_getTrackerNamed(name).deferred.promise
     if promises.length is 1
       return promises[0]
     else
       return promises
 
-  logState: () =>
+  allPromised: () =>
+    Q.all(_.map(@requested, (v, k, o) -> v.deferred.promise))
+
+  logState: (msg) =>
+    if typeof(msg) isnt "undefined"
+      log.debug msg
     _.each @requested, (value,name,o) ->
-      log.debug name + ": {data:\"#{value.deferred.promise.get(0)}\", hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
+      log.debug name + ": {arguments:\"#{value.deferred.promise.valueOf()}\", hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
 
 
-exec_query = (template, template_context, callback) ->
+exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('mine')
-  # our messages
   row_data = []
   conn = new tedious.Connection sql_config
   conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
 
-  fs.readFile(path.join(process.cwd(), 'templates', template),
+  fs.readFile(path.join(process.cwd(), 'templates', template_name),
     {encoding:'utf8'},
     manager.createCallbackHandler 'template')
 
-
-  log.info 'setting handler for template load and connect'
   Q.all(manager.getPromises(['template', 'connect'])).spread(
-    (template) ->
+    (template, ___) ->
       templateFn = dot.template template
       rendered = templateFn template_context
-      log.debug "rendered template: #{rendered}"
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
+      manager.getPromises('request-complete').fin () ->
+        conn.close()
       request.on 'row', (columns) -> row_data.push(columns)
       conn.execSql request
   )
 
-  manager.getPromises('request-complete').then () ->
-    conn.close()
-  manager.getPromises('connect-end').then () ->
-    manager.logState()
-    callback(row_data)
+  manager.allPromised().then(
+    () -> callback null, row_data )
+  .fail () ->
+    log.error arguments[0]
+    callback arguments[0], row_data
+
 
 escape_for_sql = (value) ->
   if isNaN value
@@ -111,7 +128,9 @@ app.get '*', (req, resp) ->
   # we allow people to provide any path relative to the templates directory
   # so we'll remove the initial / and keep the rest of the path while conveniently
   # dropping any parent indicators (..)
-  exec_query req.path[1..].replace(/\.\./g, ''), context, (rows) ->
+  exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
+    if error
+      resp.statusCode = 500
     resp.send _.map rows, (columns) -> 
       _.object _.map columns, (column) ->
         [column.metadata.colName, column.value]
