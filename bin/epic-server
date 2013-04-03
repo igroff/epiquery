@@ -69,6 +69,8 @@ class DeferManager
     promises = []
     if not _.isArray(name_or_list)
       names = [name_or_list]
+    # todo: this one shouldn't create, it really needs to throw if
+    # there's no matching promise
     for name in names
       promises.push @_getTrackerNamed(name).deferred.promise
     if promises.length is 1
@@ -90,7 +92,7 @@ exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('mine')
   row_data = []
   conn = new tedious.Connection sql_config
-  conn.on 'errorMessage', (message) -> log.error(JSON.stringify(message))
+  conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
 
