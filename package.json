@@ -21,6 +21,7 @@
     "db_host":"",
     "db_user":"",
     "db_password":"",
+    "template_directory": "./templates",
     "http_port":"8080"
   },
   "engine": {
@@ -31,10 +32,13 @@
     "url":  "git://github.com/intimonkey/epic-query.git"
   },
   "scripts": {
-    "start": "./node_modules/forever/bin/forever --watchDirectory ./bin --watch --append -c ./node_modules/coffee-script/bin/coffee bin/epic-server",
-    "stop": "./node_modules/forever/bin/forever stopall",
-    "test": "make test",
+    "start": "./node_modules/forever/bin/forever start --append --watchDirectory ./bin --watch -c ./node_modules/coffee-script/bin/coffee bin/epic-server",
+    "debug": "./node_modules/forever/bin/forever --append --watchDirectory ./bin --watch -c ./node_modules/coffee-script/bin/coffee bin/epic-server",
+    "stop": "./node_modules/forever/bin/forever stop `./node_modules/forever/bin/forever list | grep epic-server | awk '{ print $2 }' | sed -e 's/\\[//g' | sed -e 's/\\]//g'`",
+    "status": "./node_modules/forever/bin/forever list",
+    "test": "./bin/test",
     "predeploy": "",
     "postdeploy": ""
-  }
+  },
+  "os": ["!win32"]
 }
