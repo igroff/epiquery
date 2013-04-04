@@ -41,7 +41,6 @@
     "status": "node_modules/.bin/forever list",
     "test": "bin/test",
     "update_templates": "bin/update_or_clone_repo ${npm_package_config_template_directory} ${npm_package_config_template_repository}",
-    "watch_templates_for_updates": "node_modules/.bin/forever start --append -c ./node_modules/.bin/coffee ./bin/update_templates", 
     "predeploy": "",
     "postdeploy": ""
   },
