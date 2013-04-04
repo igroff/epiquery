@@ -1,20 +1,19 @@
 #!/usr/bin/env ./node_modules/coffee-script/bin/coffee
 
-tedious =   require 'tedious'
-path =      require 'path'
-express =   require 'express'
-fs =        require 'fs'
-dot =       require 'dot'
-util =      require 'util'
-_ =         require 'underscore'
-Q =         require 'q'
+tedious   = require 'tedious'
+path      = require 'path'
+express   = require 'express'
+fs        = require 'fs'
+dot       = require 'dot'
+util      = require 'util'
+_         = require 'underscore'
+Q         = require 'q'
 
 log = 
   error: (message) -> util.log "[ERROR] #{message}"
   info:  (message) -> util.log "[INFO] #{message}"
   warn:  (message) -> util.log "[WARN] #{message}"
   debug: (message) -> util.log "[DEBUG] #{message}"
-
 console.log = log.info
 
 config =
@@ -144,7 +143,7 @@ app.get '*', (req, resp) ->
   exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
     if error
       resp.statusCode = 500
-    resp.send _.map rows, (columns) -> 
+    resp.send _.map rows, (columns) ->
       _.object _.map columns, (column) ->
         [column.metadata.colName, column.value]
        
