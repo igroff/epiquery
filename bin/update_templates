@@ -1,22 +1,19 @@
-#! /usr/bin/env node
+#! /usr/bin/env node_modules/.bin/coffee
 
-var child_process = require('child_process');
+child_process= require 'child_process'
 
-var command = process.argv[2];
-var interval = process.argv[3];
+command = "npm run-script update_templates";
+interval = process.env.npm_package_config_template_update_interval;
 
-function run_process(){
+run_process = () ->
   child_process.execFile('bash', ["-c", command],[], {}, dump_streams);
-}
 
-function dump_streams(err, stderr, stdout){
+dump_streams = (err, stderr, stdout) ->
   console.log(stdout);
-  if (err){
+  if (err)
     console.error("Error from child:\n" + JSON.stringify(err));
-  }
   console.error(stderr);
   setInterval(run_process, interval);
-}
 
 
 console.log("starting " + process.argv[0] + " with command '" + command + "' at interval " + interval);
