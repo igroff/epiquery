@@ -1,1 +1,0 @@
-select @@servername as pants

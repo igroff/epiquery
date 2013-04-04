@@ -1,1 +1,0 @@
-select top 10 name,type from sysobjects

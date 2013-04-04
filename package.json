@@ -1,7 +1,7 @@
 {
   "name": "epiquery",
   "version": "0.0.1",
-  "description": "run templated queries from the https",
+  "description": "run templated queries from the http's",
   "main": "./bin/epic-server",
   "dependencies": {
     "socket.io": "0.9.13",
