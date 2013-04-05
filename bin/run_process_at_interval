@@ -1,0 +1,19 @@
+#! /usr/bin/env coffee
+
+child_process = require 'child_process'
+
+command = process.argv[2]
+interval = process.argv[3]
+
+run_process = () ->
+  child_process.execFile 'bash', ["-c", command],[], {}, dump_streams
+
+dump_streams = (err, stderr, stdout) ->
+  console.log stdout
+  if (err)
+    console.error("Error from child:\n" + JSON.stringify(err))
+  console.error stderr 
+  setTimeout run_process, interval 
+
+console.log("starting " + process.argv[1] + " with command '" + command + "' at interval " + interval)
+run_process()
