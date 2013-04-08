@@ -51,5 +51,3 @@ set_config epiquery:db_password ${DATABASE_GLGLIVE_PASSWORD}
 set_config epiquery:template_directory ${EPIQUERY_TEMPLATE_DIRECTORY}
 set_config epiquery:template_repository ${EPIQUERY_TEMPLATE_REPOSITORY}
 set_config epiquery:template_update_interval 60000
-
-forever start --append --watchDirectory ./bin --watch -c coffee bin/epic-server

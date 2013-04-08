@@ -35,7 +35,8 @@
     "url":  "git://github.com/intimonkey/epic-query.git"
   },
   "scripts": {
-    "start": "npm run-script update_templates ; ./bin/epic-start",
+    "prestart": "./bin/setup-environment",
+    "start": "npm run-script update_templates ; forever start --append --watchDirectory ./bin --watch -c coffee bin/epic-server",
     "debug": "forever --append --watchDirectory ./bin --watch -c coffee bin/epic-server",
     "stop": "forever stopall",
     "status": "forever list",
