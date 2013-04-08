@@ -1,0 +1,26 @@
+#! /usr/bin/env bash
+# vim: ft=sh
+# first we're gonna update our config from any environment variables we have
+npm config set epiquery:db_port ${DATABASE_GLGLIVE_PORT}
+npm config set epiquery:db_host ${DATABASE_GLGLIVE_DATABASE}
+npm config set epiquery:db_user ${DATABASE_GLGLIVE_USER}
+npm config set epiquery:db_password ${DATABASE_GLGLIVE_PASSWORD}
+npm config set epiquery:template_directory ${EPIQUERY_TEMPLATE_DIRECTORY}
+npm config set epiquery:template_repository ${EPIQUERY_TEMPLATE_REPOSITORY}
+npm config set epiquery:template_update_interval 60000
+#Set up what we expect to have a good superforker environment. This is used from
+#start and stop before the first fork
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${DIR}/.nvm.sh"
+CURRENT_NODE_VERSION=`node --version`
+NEEDED_NODE_VERSION='v0.10.3'
+HAS_NEEDED_VERSION=`nvm ls | grep ${NEEDED_NODE_VERSION}`
+
+if [ -z "${HAS_NEEDED_VERSION}" ]; then
+  echo 'get the right version of node going'
+  nvm install $NEEDED_NODE_VERSION
+  npm update
+fi
+
+nvm use $NEEDED_NODE_VERSION
+forever start --append --watchDirectory ./bin --watch -c coffee bin/epic-server
