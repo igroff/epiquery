@@ -21,13 +21,19 @@ nvm use $NEEDED_NODE_VERSION
 # from which we're running
 if [ -z "${EPIQUERY_TEMPLATE_DIRECTORY}" ]; then
   export EPIQUERY_TEMPLATE_DIRECTORY=`pwd`/templates
+  echo "Using template directory ${EPIQUERY_TEMPLATE_DIRECTORY}"
 fi
 
 # if not provided we'll provide a 'sensible' default which looks like the
 # existing repo name with .git replaced with -templates.git
 if [ -z "${EPIQUERY_TEMPLATE_REPOSITORY}" ]; then
   ORIGIN=`git remote -v | grep origin | grep fetch | awk '{ print $2}'`
-  export EPIQUERY_TEMPLATE_REPOSITORY=`echo ${ORIGIN} | sed -e s[\.git[-templates.git[g`
+  ORIG_BASENAME=`basename ${ORIGIN}`
+  export TEMPLATE_BASENAME=`echo ${ORIG_BASENAME} | sed -e s[\.git[-templates.git[g`
+  if [ "${ORIG_BASENAME}" == "${TEMPLATE_BASENAME}" ]; then
+	TEMPLATE_BASENAME="${ORIG_BASENAME}-templates"
+  fi
+  export EPIQUERY_TEMPLATE_REPOSITORY=`echo ${ORIGIN} | sed -e s[${ORIG_BASENAME}[${TEMPLATE_BASENAME}[g`
   echo "Setting template repository to ${EPIQUERY_TEMPLATE_REPOSITORY}"
 fi
 
