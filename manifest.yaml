@@ -5,7 +5,7 @@ env:
         server_disk_size_gb: 10
         number_of_servers: 1
         number_of_cpu: 4
-        server_memory_gb: 1
+        server_memory_gb: 4
         stew: false
-        clone_directory: 
-        bootstrap_shell_command:
+        clone_directory: app
+        bootstrap_shell_command: cd ~/app/storm ; ./move_keys.sh
