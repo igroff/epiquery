@@ -36,8 +36,10 @@
   },
   "scripts": {
     "prestart": "./bin/setup-environment",
-    "start": "npm run-script update_templates ; forever start --append --watchDirectory ./bin --watch -c coffee bin/epic-server",
-    "debug": "forever --append --watchDirectory ./bin --watch -c coffee bin/epic-server",
+    "prestop": "./bin/setup-environment",
+    "pretest": "./bin/setup-environment",
+    "start": "npm run-script update_templates ; forever start --append -o `pwd`/var/log/epic-server.out.log -e `pwd`/var/log/epic-server.err.log -l `pwd`/var/log/forever.log --watchDirectory ./bin --watch -c coffee bin/epic-server",
+    "debug": "forever --append -o `pwd`/var/log/epic-server.out.log -e `pwd`/var/log/epic-server.err.log -l `pwd`/var/log/forever.log --watchDirectory ./bin --watch -c coffee bin/epic-server",
     "stop": "forever stopall",
     "status": "forever list",
     "show-env": "bin/test",
