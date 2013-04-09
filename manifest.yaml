@@ -8,4 +8,4 @@ env:
         server_memory_gb: 4
         stew: false
         clone_directory: epiquery
-        bootstrap_shell_command: cd ~/epiquery/storm ; ./move_keys.sh ; cd ~/epiquery ; ./bin/setup-environment ; npm start
+        bootstrap_shell_command: cd ~/epiquery/storm ; ./setup.sh ; cd ~/epiquery ; ./bin/setup-environment ; npm start
