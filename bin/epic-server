@@ -8,13 +8,7 @@ dot       = require 'dot'
 util      = require 'util'
 _         = require 'underscore'
 Q         = require 'q'
-
-log = 
-  error: (message) -> util.log "[ERROR] #{message}"
-  info:  (message) -> util.log "[INFO] #{message}"
-  warn:  (message) -> util.log "[WARN] #{message}"
-  debug: (message) -> util.log "[DEBUG] #{message}"
-console.log = log.info
+mustache  = require 'hogan.js'
 
 config =
   sql:
@@ -24,6 +18,37 @@ config =
     options:
       port:   process.env.npm_package_config_db_port
   template_directory: process.env.npm_package_config_template_directory
+
+# setting up some real simple logging
+log =
+  error: (message) -> util.log "[ERROR] #{message}"
+  info:  (message) -> util.log "[INFO] #{message}"
+  warn:  (message) -> util.log "[WARN] #{message}"
+  debug: (message) -> util.log "[DEBUG] #{message}"
+console.log = log.info
+
+##########################################################
+# <template rendering>
+renderers = {}
+renderers[".dot"] =  (template, context) ->
+  templateFn = dot.template template
+  templateFn context
+
+renderers[".mustache"] =  (template_string, context) ->
+  template = mustache.compile template_string
+  template.render context
+
+renderers[".error"] = () ->
+  pants_are cool
+  throw "pants"
+
+# set our default handler
+renderers[""] = renderers[".dot"]
+
+get_renderer_for_template = (template_path) ->
+  renderers[path.extname template_path]
+# </template rendering>
+##########################################################
 
 class DeferManager
   constructor: (@name) ->
@@ -81,52 +106,50 @@ class DeferManager
       return promises
 
   allPromised: () =>
-    Q.all(_.map(@requested, (v, k, o) -> v.deferred.promise))
-
-  logState: (msg) =>
-    if typeof(msg) isnt "undefined"
-      log.debug msg
-    _.each @requested, (value,name,o) ->
-      log.debug name + ": {arguments:\"#{value.deferred.promise.valueOf()}\", hooked: #{value.hooked}, isPending: #{value.deferred.promise.isPending()}}"
+    Q.all(_.map(@requested, (v, k, o) -> log.info k; v.deferred.promise))
 
 
 exec_query = (template_name, template_context, callback) ->
-  manager = new DeferManager('mine')
+  manager = new DeferManager('Used To Keep Track Of Our Deferreds')
   row_data = []
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
 
+  # need to read our template to get the contents
   fs.readFile(path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'},
     manager.createCallbackHandler 'template')
 
-  Q.all(manager.getPromises(['template', 'connect'])).spread(
+  
+  # once we have a connection and our template contents, then we can continue
+  Q.all(manager.getPromises ['template', 'connect']).spread(
+    # a resolved connect has no arguments so we'll get our template argument first
     (template, ___) ->
-      templateFn = dot.template template
-      rendered = templateFn template_context
+      renderer = get_renderer_for_template template_name
+      rendered = renderer template, template_context
+      log.debug "rendered template\n #{rendered}"
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
-      manager.getPromises('request-complete').fin () ->
-        conn.close()
+      # make sure that no matter hour our request-complete event ends, we close the connection
+      manager.getPromises('request-complete').fin () -> conn.close()
       request.on 'row', (columns) -> row_data.push(columns)
       conn.execSql request
-  )
+  ).fail (error) -> callback error, row_data # something in the spread failed
 
   manager.getPromise('connect-end').then () ->
     # this is silly, but... there's a case where tedious will fail to
-    # connect but not raise a connect(err) event instead going strait to
+    # connect but not raise a connect(err) event instead going straight to
     # raising 'end'.  So from the normal processing path, this should be
     # raised by the close of the connection which is done on the request-complete
     # trigger and we should then be done anyway so this will simply be redundant
     manager._getTrackerNamed('connect').deferred.resolve()
 
   manager.allPromised().then(
-    () ->
-      callback null, row_data
-  ).fail () ->
-    log.error arguments[0]
-    callback arguments[0], row_data
+    () -> callback null, row_data
+  ).fail(
+    (error) -> callback error, row_data
+  )
 
 escape_for_sql = (value) ->
   if isNaN value
@@ -135,7 +158,9 @@ escape_for_sql = (value) ->
 
 app = express()
 app.get '*', (req, resp) ->
+  # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query
+  # escape things so nothing nefarious gets by
   _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
   # we allow people to provide any path relative to the templates directory
   # so we'll remove the initial / and keep the rest of the path while conveniently
@@ -143,10 +168,14 @@ app.get '*', (req, resp) ->
   exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
     if error
       resp.statusCode = 500
-    resp.send _.map rows, (columns) ->
-      _.object _.map columns, (column) ->
-        [column.metadata.colName, column.value]
+      log.error "#{error.message}\n#{error.stack}"
+      result = {status: "error", message: error.message}
+    else
+      result = _.map rows, (columns) ->
+        _.object _.map columns, (column) ->
+          [column.metadata.colName, column.value]
+    resp.send result
        
 
-log.debug JSON.stringify config
+log.debug "Configuration: #{JSON.stringify config}"
 app.listen process.env.npm_package_config_http_port
