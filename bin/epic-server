@@ -178,4 +178,5 @@ app.get '*', (req, resp) ->
        
 
 log.debug "Configuration: #{JSON.stringify config}"
+log.info "Starting epi server on port:"+process.env.npm_package_config_http_port
 app.listen process.env.npm_package_config_http_port
