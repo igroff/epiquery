@@ -1,0 +1,42 @@
+[
+  {
+    "name": "spt_fallback_db",
+    "type": "U "
+  },
+  {
+    "name": "spt_fallback_dev",
+    "type": "U "
+  },
+  {
+    "name": "spt_fallback_usg",
+    "type": "U "
+  },
+  {
+    "name": "spt_monitor",
+    "type": "U "
+  },
+  {
+    "name": "spt_values",
+    "type": "U "
+  },
+  {
+    "name": "DF__spt_value__statu__4460231C",
+    "type": "D "
+  },
+  {
+    "name": "xp_smtp_sendmail",
+    "type": "P "
+  },
+  {
+    "name": "sp_MSalreadyhavegeneration",
+    "type": "P "
+  },
+  {
+    "name": "sp_MSwritemergeperfcounter",
+    "type": "P "
+  },
+  {
+    "name": "TABLE_PRIVILEGES",
+    "type": "V "
+  }
+]

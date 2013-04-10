@@ -1,0 +1,4 @@
+{
+  "status": "error",
+  "message": "ENOENT, open '/Users/iangroff/Development/epicquery/templates/test/no.such.file'"
+}

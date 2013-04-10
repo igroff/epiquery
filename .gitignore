@@ -2,3 +2,4 @@ node_modules/
 var/
 set_env
 templates/
+test/tmp/
