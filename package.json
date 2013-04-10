@@ -45,7 +45,7 @@
     "status": "forever list",
     "show-env": "bin/test",
     "update_templates": "forever start --append -c coffee ./bin/epic-run_process_at_interval \"./bin/update_or_clone_repo ${npm_package_config_template_directory} ${npm_package_config_template_repository}\" ${npm_package_config_template_update_interval}",
-    "test": "npm run-script show-env",
+    "test": "pushd test/ ; ./run.sh ; popd",
     "predeploy": "",
     "postdeploy": ""
   },
