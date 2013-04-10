@@ -5,8 +5,9 @@ function run_test() {
   PATH_NAME=`echo $1 | sed -e s[?.*[[g`
   curl -s "${TEST_URL}/test/$1" > tmp/$PATH_NAME.result 
   diff data/$PATH_NAME.expected tmp/$PATH_NAME.result
+  DIFF_RESULT=$?
   printf "Test %s " ${PATH_NAME}
-  if [ $? -eq 0 ]; then
+  if [ $DIFF_RESULT -eq 0 ]; then
     echo "success"
   else
     echo "failed"
