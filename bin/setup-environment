@@ -51,5 +51,6 @@ set_config epiquery:db_password ${DATABASE_GLGLIVE_PASSWORD}
 set_config epiquery:template_directory ${EPIQUERY_TEMPLATE_DIRECTORY}
 set_config epiquery:template_repository ${EPIQUERY_TEMPLATE_REPOSITORY}
 set_config epiquery:template_update_interval 60000
+set_config epiquery:http_port ${EPIQUERY_HTTP_PORT} 8080
 
 mkdir -p ./var/log
