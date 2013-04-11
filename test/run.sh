@@ -17,7 +17,7 @@ function run_dynamic_test(){
   # development query tests
   TEST_NAME=$1
   TEMPLATE=$2
-  curl -s ${TEST_URL}  --data-urlencode "__template=${TEMPLATE}" > tmp/${TEST_NAME}.result
+  curl -s ${TEST_URL}  --data-urlencode "__template=${TEMPLATE}" > tmp/${TEST_NAME}.result "$@"
 
   diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
   DIFF_RESULT=$?
@@ -36,4 +36,4 @@ run_test echo.error
 run_test no.such.file
 
 run_dynamic_test dynamic1 'select 1 [column]'
-
+run_dynamic_test dynamic2 "select 'Hello, '+'{{name}}' [message]" --data-urlencode 'name=ian'
