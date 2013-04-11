@@ -9,6 +9,8 @@ util      = require 'util'
 _         = require 'underscore'
 Q         = require 'q'
 mustache  = require 'hogan.js'
+crypto    = require 'crypto'
+
 
 config =
   sql:
@@ -121,7 +123,6 @@ exec_query = (template_name, template_context, callback) ->
   fs.readFile(path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'},
     manager.createCallbackHandler 'template')
-
   
   # once we have a connection and our template contents, then we can continue
   Q.all(manager.getPromises ['template', 'connect']).spread(
@@ -156,10 +157,24 @@ escape_for_sql = (value) ->
     value = value.replace(/'/g, "''")
   value
 
-app = express()
-app.get '*', (req, resp) ->
+request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query
+
+  # check to see if we're running a 'development' request
+  # really, this isn't for production so don't expect it to 
+  # perform, as a matter of face, we're using sync calls here
+  if context["__template"]
+    hasher = crypto.createHash 'sha1'
+    hasher.update context["__template"]
+    temp_template_path = "debug/#{hasher.digest('hex')}"
+    temp_file_path = path.join(path.normalize(config.template_directory), temp_template_path)
+    log.debug "writing template contents to tmp file at #{temp_file_path}"
+    fs.writeFileSync temp_file_path, context["__template"]
+    # we're gonna overwrite the incoming url so that we can use our standard
+    # path for request handling, it's a bit like a redirect
+    req.url = "/#{temp_template_path}"
+
   # escape things so nothing nefarious gets by
   _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
   # we allow people to provide any path relative to the templates directory
@@ -175,6 +190,11 @@ app.get '*', (req, resp) ->
         _.object _.map columns, (column) ->
           [column.metadata.colName, column.value]
     resp.send result
+
+app = express()
+app.use express.bodyParser()
+app.get '*', request_handler
+app.post '*', request_handler
        
 
 log.debug "Configuration: #{JSON.stringify config}"

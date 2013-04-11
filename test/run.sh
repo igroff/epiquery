@@ -19,3 +19,14 @@ run_test 'hello.mustache?name=Ian'
 run_test servername
 run_test echo.error
 run_test no.such.file
+
+# development query tests
+curl -s http://localhost:8080 --data-urlencode '__template=select top 1 1 [column] from sysobjects' > tmp/dynamic1.result
+diff data/dynamic1.expected tmp/dynamic1.result
+DIFF_RESULT=$?
+printf "dynamic1 "
+if [ $DIFF_RESULT -eq 0 ]; then
+  echo "success"
+else
+  echo "failed"
+fi
