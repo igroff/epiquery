@@ -5,13 +5,17 @@
 #start and stop before the first fork
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${DIR}/.nvm.sh"
-CURRENT_NODE_VERSION=`node --version`
-NEEDED_NODE_VERSION='v0.10.3'
-HAS_NEEDED_VERSION=`nvm ls | grep ${NEEDED_NODE_VERSION}`
+which node > /dev/null 2>&1
+if [ $? != 0 ]; then
+  CURRENT_NODE_VERSION=`node --version`
+  NEEDED_NODE_VERSION='v0.10.3'
+  HAS_NEEDED_VERSION=`nvm ls | grep ${NEEDED_NODE_VERSION}`
+fi
 
 if [ -z "${HAS_NEEDED_VERSION}" ]; then
   echo 'get the right version of node going'
   nvm install $NEEDED_NODE_VERSION
+  nvm alias default $NEEDED_NODE_VERSION
   npm update
 fi
 
