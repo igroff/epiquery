@@ -167,7 +167,8 @@ request_handler = (req, resp) ->
   if context["__template"]
     hasher = crypto.createHash 'sha1'
     hasher.update context["__template"]
-    temp_template_path = "debug/#{hasher.digest('hex')}"
+    template_type = context["__template_type"] || "mustache"
+    temp_template_path = "debug/#{hasher.digest('hex')}.#{template_type}"
     temp_file_path = path.join(path.normalize(config.template_directory), temp_template_path)
     log.debug "writing template contents to tmp file at #{temp_file_path}"
     fs.writeFileSync temp_file_path, context["__template"]
