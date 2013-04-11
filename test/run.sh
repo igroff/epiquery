@@ -13,6 +13,21 @@ function run_test() {
     echo "failed"
   fi
 }
+function run_dynamic_test(){
+  # development query tests
+  TEST_NAME=$1
+  TEMPLATE=$2
+  curl -s ${TEST_URL}  --data-urlencode "__template=${TEMPLATE}" > tmp/${TEST_NAME}.result
+
+  diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
+  DIFF_RESULT=$?
+  printf "%s " $TEST_NAME
+  if [ $DIFF_RESULT -eq 0 ]; then
+    echo "success"
+  else
+    echo "failed"
+  fi
+}
 run_test error
 run_test sysobjects
 run_test 'hello.mustache?name=Ian'
@@ -20,13 +35,5 @@ run_test servername
 run_test echo.error
 run_test no.such.file
 
-# development query tests
-curl -s http://localhost:8080 --data-urlencode '__template=select top 1 1 [column] from sysobjects' > tmp/dynamic1.result
-diff data/dynamic1.expected tmp/dynamic1.result
-DIFF_RESULT=$?
-printf "dynamic1 "
-if [ $DIFF_RESULT -eq 0 ]; then
-  echo "success"
-else
-  echo "failed"
-fi
+run_dynamic_test dynamic1 'select 1 [column]'
+
