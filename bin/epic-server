@@ -129,7 +129,7 @@ exec_query = (template_name, template_context, callback) ->
   fs.readFile(path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'},
     manager.createCallbackHandler 'template')
-  
+
   # once we have a connection and our template contents, then we can continue
   Q.all(manager.getPromises ['template', 'connect']).spread(
     # a resolved connect has no arguments so we'll get our template argument first
@@ -138,12 +138,18 @@ exec_query = (template_name, template_context, callback) ->
       rendered = renderer template, template_context
       log.debug "rendered template\n #{rendered}"
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
-      # make sure that no matter hour our request-complete event ends, we close the connection
+      # make sure that no matter how our request-complete event ends, we close the connection
       manager.getPromises('request-complete').fin () -> conn.close()
       request.on 'doneInProc', (count, more) ->
-        result_sets.push(row_data)
-        row_data = []
-      request.on 'row', (columns) -> row_data.push(columns)
+        # if we're doneInProc and we've collected some rows
+        # then well push our result set onto the list and
+        # start a new one.  this is how we collect multiple
+        # result sets
+        if row_data.length > 0
+          log.debug "reset"
+          result_sets.push(row_data)
+          row_data = []
+      request.on 'row', (columns) -> log.debug "row" ; row_data.push(columns)
       conn.execSql request
   ).fail (error) -> callback error, get_results() # something in the spread failed
 
@@ -197,8 +203,7 @@ request_handler = (req, resp) ->
       result = {status: "error", message: error.message}
     else
       log.debug JSON.stringify(rows)
-      if _.isArray rows[0][0]
-        log.debug 'have multiple results sets'
+      if _.isArray rows[0]?[0] # we have multiple result sets
         result = []
         for result_set in rows
           result.push _.map result_set, (columns) ->
