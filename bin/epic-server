@@ -113,11 +113,17 @@ class DeferManager
 
 exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('Used To Keep Track Of Our Deferreds')
+  result_sets = []
   row_data = []
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
+
+  get_results = () ->
+    if result_sets.length is 1
+      return result_sets[0]
+    result_sets
 
   # need to read our template to get the contents
   fs.readFile(path.join(path.normalize(config.template_directory), template_name),
@@ -134,9 +140,12 @@ exec_query = (template_name, template_context, callback) ->
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
       # make sure that no matter hour our request-complete event ends, we close the connection
       manager.getPromises('request-complete').fin () -> conn.close()
+      request.on 'doneInProc', (count, more) ->
+        result_sets.push(row_data)
+        row_data = []
       request.on 'row', (columns) -> row_data.push(columns)
       conn.execSql request
-  ).fail (error) -> callback error, row_data # something in the spread failed
+  ).fail (error) -> callback error, get_results() # something in the spread failed
 
   manager.getPromise('connect-end').then () ->
     # this is silly, but... there's a case where tedious will fail to
@@ -147,9 +156,9 @@ exec_query = (template_name, template_context, callback) ->
     manager._getTrackerNamed('connect').deferred.resolve()
 
   manager.allPromised().then(
-    () -> callback null, row_data
+    () -> callback null, get_results()
   ).fail(
-    (error) -> callback error, row_data
+    (error) -> callback error, get_results()
   )
 
 escape_for_sql = (value) ->
@@ -187,9 +196,18 @@ request_handler = (req, resp) ->
       log.error "#{error.message}\n#{error.stack}"
       result = {status: "error", message: error.message}
     else
-      result = _.map rows, (columns) ->
-        _.object _.map columns, (column) ->
-          [column.metadata.colName, column.value]
+      log.debug JSON.stringify(rows)
+      if _.isArray rows[0][0]
+        log.debug 'have multiple results sets'
+        result = []
+        for result_set in rows
+          result.push _.map result_set, (columns) ->
+            _.object _.map columns, (column) ->
+              [column.metadata.colName, column.value]
+      else
+        result = _.map rows, (columns) ->
+          _.object _.map columns, (column) ->
+            [column.metadata.colName, column.value]
     resp.send result
 
 app = express()
