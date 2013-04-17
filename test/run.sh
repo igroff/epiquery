@@ -33,6 +33,14 @@ run_test sysobjects
 run_test 'hello.mustache?name=Ian'
 run_test echo.error
 run_test no.such.file
+run_test 1000_rows
+run_test multiple_rows_multiple_results
+run_test multiple_rows_multiple_results.mustache
+run_test multiple_rows_multiple_results.dot
+run_test multiple_rows
+run_test multiple_result.mustache
+run_test multiple_result_one_empty
+run_test 'echo.dot?message=pants&dog=blue'
 
 run_dynamic_test dynamic1 'select 1 [column]'
 run_dynamic_test dynamic2 "select 'Hello, '+'{{name}}' [message]" --data-urlencode 'name=ian'

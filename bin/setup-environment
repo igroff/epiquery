@@ -50,8 +50,8 @@ set_config(){
 }
 set_config epiquery:db_port ${DATABASE_GLGLIVE_PORT} 1433
 set_config epiquery:db_host ${DATABASE_GLGLIVE_SERVER} localhost
-set_config epiquery:db_user ${DATABASE_GLGLIVE_USER} 
-set_config epiquery:db_password ${DATABASE_GLGLIVE_PASSWORD}
+set_config epiquery:db_user ${DATABASE_GLGLIVE_USER} sa
+set_config epiquery:db_password ${DATABASE_GLGLIVE_PASSWORD} sa
 set_config epiquery:template_directory ${EPIQUERY_TEMPLATE_DIRECTORY}
 set_config epiquery:template_repository ${EPIQUERY_TEMPLATE_REPOSITORY}
 set_config epiquery:template_update_interval 60000

@@ -12,6 +12,7 @@ mustache  = require 'hogan.js'
 crypto    = require 'crypto'
 
 
+
 config =
   sql:
     userName: process.env.npm_package_config_db_user
@@ -20,6 +21,9 @@ config =
     options:
       port:   process.env.npm_package_config_db_port
   template_directory: process.env.npm_package_config_template_directory
+
+# whitespace is important, we don't want to strip it
+dot.templateSettings.strip = false
 
 # setting up some real simple logging
 log =
@@ -45,7 +49,8 @@ renderers[".error"] = () ->
   throw "pants"
 
 # set our default handler
-renderers[""] = renderers[".dot"]
+renderers[""] = (template_string) ->
+  template_string
 
 get_renderer_for_template = (template_path) ->
   renderers[path.extname template_path]
@@ -114,16 +119,11 @@ class DeferManager
 exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('Used To Keep Track Of Our Deferreds')
   result_sets = []
-  row_data = []
+  row_data = null 
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
   conn.on 'end', manager.createEventResolver 'connect-end'
-
-  get_results = () ->
-    if result_sets.length is 1
-      return result_sets[0]
-    result_sets
 
   # need to read our template to get the contents
   fs.readFile(path.join(path.normalize(config.template_directory), template_name),
@@ -140,18 +140,24 @@ exec_query = (template_name, template_context, callback) ->
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
       # make sure that no matter how our request-complete event ends, we close the connection
       manager.getPromises('request-complete').fin () -> conn.close()
-      request.on 'doneInProc', (count, more) ->
-        # if we're doneInProc and we've collected some rows
-        # then well push our result set onto the list and
-        # start a new one.  this is how we collect multiple
-        # result sets
-        if row_data.length > 0
-          log.debug "reset"
+      manager.getPromise('request-complete').then () -> 
+        if row_data isnt null
           result_sets.push(row_data)
-          row_data = []
+        log.debug "request-completed #{arguments[0]}, #{arguments[1]}"
+      request.on 'done', () -> a=arguments; log.debug("done #{a[0]}, #{a[1]}, #{a[2]}")
+      request.on 'columnMetadata', () -> log.debug("columnMetadata")
+      request.on 'doneProc', () -> a=arguments; log.debug("doneProc #{a[0]}, #{a[1]}, #{a[2]}, #{a[3]}")
+      request.on 'doneInProc', () -> a=arguments; log.debug("doneInProc #{a[0]}, #{a[1]}, #{a[2]}")
+      request.on 'columnMetadata', () ->
+        # first time through we should have a null value
+        # after that we'll either have empty arrays or some data to
+        # push onto our result sets
+        if row_data isnt null
+          result_sets.push(row_data)
+        row_data = []
       request.on 'row', (columns) -> log.debug "row" ; row_data.push(columns)
       conn.execSql request
-  ).fail (error) -> callback error, get_results() # something in the spread failed
+  ).fail (error) -> callback error, result_sets # something in the spread failed
 
   manager.getPromise('connect-end').then () ->
     # this is silly, but... there's a case where tedious will fail to
@@ -162,9 +168,9 @@ exec_query = (template_name, template_context, callback) ->
     manager._getTrackerNamed('connect').deferred.resolve()
 
   manager.allPromised().then(
-    () -> callback null, get_results()
+    () -> callback null, result_sets
   ).fail(
-    (error) -> callback error, get_results()
+    (error) -> callback error, result_sets
   )
 
 escape_for_sql = (value) ->
@@ -203,14 +209,16 @@ request_handler = (req, resp) ->
       result = {status: "error", message: error.message}
     else
       log.debug JSON.stringify(rows)
-      if _.isArray rows[0]?[0] # we have multiple result sets
+      if rows.length > 1 # we have multiple result sets
+        log.debug "#{rows.length}(s) result sets returned"
         result = []
         for result_set in rows
           result.push _.map result_set, (columns) ->
             _.object _.map columns, (column) ->
               [column.metadata.colName, column.value]
       else
-        result = _.map rows, (columns) ->
+        log.debug "1 result set returned"
+        result = _.map rows[0], (columns) ->
           _.object _.map columns, (column) ->
             [column.metadata.colName, column.value]
     resp.send result
