@@ -156,7 +156,7 @@ exec_query = (template_name, template_context, callback) ->
           result_sets.push(row_data)
         row_data = []
       request.on 'row', (columns) -> log.debug "row" ; row_data.push(columns)
-      conn.execSql request
+      conn.execSqlBatch request
   ).fail (error) -> callback error, result_sets # something in the spread failed
 
   manager.getPromise('connect-end').then () ->
