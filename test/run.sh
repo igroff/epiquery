@@ -21,7 +21,7 @@ function run_dynamic_test(){
 
   diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
   DIFF_RESULT=$?
-  printf "%s " $TEST_NAME
+  printf "Test %s " $TEST_NAME
   if [ $DIFF_RESULT -eq 0 ]; then
     echo "success"
   else
@@ -41,6 +41,9 @@ run_test multiple_rows
 run_test multiple_result.mustache
 run_test multiple_result_one_empty
 run_test 'echo.dot?message=pants&dog=blue'
+run_test prepare_a_statement
+run_test 'prepare_a_statement_with_param.mustache?id=1'
+run_test do_stuff_but_return_no_results
 
 run_dynamic_test dynamic1 'select 1 [column]'
 run_dynamic_test dynamic2 "select 'Hello, '+'{{name}}' [message]" --data-urlencode 'name=ian'
