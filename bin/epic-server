@@ -21,7 +21,6 @@ config =
       port:   process.env.npm_package_config_db_port
   template_directory: process.env.npm_package_config_template_directory
 
-
 # setting up some real simple logging
 log =
   error: (message) -> util.log "[ERROR] #{message}"
@@ -81,19 +80,14 @@ log_promise = (name, promise) ->
 exec_query = (template_name, template_context, callback) ->
   result_sets = []
   row_data = null
-  connect_deferred = Q.defer()
-  connect_end_deferred = Q.defer()
-  template_loaded_deferred = Q.defer()
-  request_complete_deferred = Q.defer()
+  connect_deferred           = Q.defer()
+  connect_end_deferred       = Q.defer()
+  template_loaded_deferred   = Q.defer()
+  request_complete_deferred  = Q.defer()
 
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
-  conn.on 'connect', (err) ->
-    if err
-      log.error "error connecting #{error}"
-      connect_deferred.reject(err)
-    else
-      connect_deferred.resolve()
+  conn.on 'connect', connect_deferred.makeNodeResolver()
   conn.on 'end', () -> connect_end_deferred.resolve()
 
   # need to read our template to get the contents
