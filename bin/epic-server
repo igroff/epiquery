@@ -12,7 +12,6 @@ mustache  = require 'hogan.js'
 crypto    = require 'crypto'
 
 
-
 config =
   sql:
     userName: process.env.npm_package_config_db_user
@@ -22,19 +21,27 @@ config =
       port:   process.env.npm_package_config_db_port
   template_directory: process.env.npm_package_config_template_directory
 
-# whitespace is important, we don't want to strip it
-dot.templateSettings.strip = false
 
 # setting up some real simple logging
 log =
   error: (message) -> util.log "[ERROR] #{message}"
   info:  (message) -> util.log "[INFO] #{message}"
   warn:  (message) -> util.log "[WARN] #{message}"
-  debug: (message) -> util.log "[DEBUG] #{message}"
+  debug: (message) ->
+    if process.env.DEBUG
+      util.log "[DEBUG] #{message}"
+  event: (message) ->
+    if process.env.DEBUG
+      util.log "[EVENT] #{message}"
+
 console.log = log.info
 
 ##########################################################
 # <template rendering>
+
+# whitespace is important, we don't want to strip it
+dot.templateSettings.strip = false
+
 renderers = {}
 renderers[".dot"] =  (template, context) ->
   templateFn = dot.template template
@@ -113,13 +120,13 @@ class DeferManager
       return promises
 
   allPromised: () =>
-    Q.all(_.map(@requested, (v, k, o) -> log.info k; v.deferred.promise))
+    Q.all(_.map(@requested, (v, k, o) -> v.deferred.promise))
 
 
 exec_query = (template_name, template_context, callback) ->
   manager = new DeferManager('Used To Keep Track Of Our Deferreds')
   result_sets = []
-  row_data = null 
+  row_data = null
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', manager.createEventResolver 'connect'
@@ -140,14 +147,14 @@ exec_query = (template_name, template_context, callback) ->
       request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
       # make sure that no matter how our request-complete event ends, we close the connection
       manager.getPromises('request-complete').fin () -> conn.close()
-      manager.getPromise('request-complete').then () -> 
+      manager.getPromise('request-complete').then () ->
         if row_data isnt null
           result_sets.push(row_data)
-        log.debug "request-completed #{arguments[0]}, #{arguments[1]}"
-      request.on 'done', () -> a=arguments; log.debug("done #{a[0]}, #{a[1]}, #{a[2]}")
-      request.on 'columnMetadata', () -> log.debug("columnMetadata")
-      request.on 'doneProc', () -> a=arguments; log.debug("doneProc #{a[0]}, #{a[1]}, #{a[2]}, #{a[3]}")
-      request.on 'doneInProc', () -> a=arguments; log.debug("doneInProc #{a[0]}, #{a[1]}, #{a[2]}")
+        log.event "request-completed #{arguments[0]}, #{arguments[1]}"
+      request.on 'done', () -> a=arguments; log.event("done #{a[0]}, #{a[1]}, #{a[2]}")
+      request.on 'columnMetadata', () -> log.event("columnMetadata")
+      request.on 'doneProc', () -> a=arguments; log.event("doneProc #{a[0]}, #{a[1]}, #{a[2]}, #{a[3]}")
+      request.on 'doneInProc', () -> a=arguments; log.event("doneInProc #{a[0]}, #{a[1]}, #{a[2]}")
       request.on 'columnMetadata', () ->
         # first time through we should have a null value
         # after that we'll either have empty arrays or some data to
@@ -155,7 +162,7 @@ exec_query = (template_name, template_context, callback) ->
         if row_data isnt null
           result_sets.push(row_data)
         row_data = []
-      request.on 'row', (columns) -> log.debug "row" ; row_data.push(columns)
+      request.on 'row', (columns) -> log.event "row" ; row_data.push(columns)
       conn.execSqlBatch request
   ).fail (error) -> callback error, result_sets # something in the spread failed
 
@@ -229,6 +236,6 @@ app.get '*', request_handler
 app.post '*', request_handler
        
 
-log.debug "Configuration: #{JSON.stringify config}"
+log.info "Configuration: #{JSON.stringify config}"
 log.info "Starting epi server on port: #{process.env.npm_package_config_http_port}"
 app.listen process.env.npm_package_config_http_port
