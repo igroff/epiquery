@@ -42,20 +42,25 @@ console.log = log.info
 # whitespace is important, we don't want to strip it
 dot.templateSettings.strip = false
 
+# keep track of our renderers, we're storing them by 
+# their associated file extension as that is how we'll
+# be looking them up
 renderers = {}
-renderers[".dot"] =  (template, context) ->
-  templateFn = dot.template template
+renderers[".dot"] =  (template_string, context) ->
+  templateFn = dot.template template_string
   templateFn context
 
 renderers[".mustache"] =  (template_string, context) ->
   template = mustache.compile template_string
   template.render context
 
+# this is purely to facilitate testing
 renderers[".error"] = () ->
   pants_are cool
   throw "pants"
 
-# set our default handler
+# set our default handler, which does nothing
+# but return the template_string it was given
 renderers[""] = (template_string) ->
   template_string
 
@@ -151,10 +156,15 @@ exec_query = (template_name, template_context, callback) ->
         if row_data isnt null
           result_sets.push(row_data)
         log.event "request-completed #{arguments[0]}, #{arguments[1]}"
+      # <for debugging>
       request.on 'done', () -> a=arguments; log.event("done #{a[0]}, #{a[1]}, #{a[2]}")
       request.on 'columnMetadata', () -> log.event("columnMetadata")
       request.on 'doneProc', () -> a=arguments; log.event("doneProc #{a[0]}, #{a[1]}, #{a[2]}, #{a[3]}")
       request.on 'doneInProc', () -> a=arguments; log.event("doneInProc #{a[0]}, #{a[1]}, #{a[2]}")
+      # </for debugging>
+
+      # we use this event to split up multipe result sets as each result set
+      # is preceeded by a columnMetadata event
       request.on 'columnMetadata', () ->
         # first time through we should have a null value
         # after that we'll either have empty arrays or some data to
@@ -162,7 +172,12 @@ exec_query = (template_name, template_context, callback) ->
         if row_data isnt null
           result_sets.push(row_data)
         row_data = []
+      # collecting our results, yes .4 of tedious allows this to be collected
+      # on th request callback, this just didn't get converted for the new version
       request.on 'row', (columns) -> log.event "row" ; row_data.push(columns)
+      # we're _just_ rendering strings to send to sql server so batch is really
+      # what we want here, all that fancy parameterization and 'stuff' is done in
+      # the template
       conn.execSqlBatch request
   ).fail (error) -> callback error, result_sets # something in the spread failed
 
@@ -201,7 +216,7 @@ request_handler = (req, resp) ->
     log.debug "writing template contents to tmp file at #{temp_file_path}"
     fs.writeFileSync temp_file_path, context["__template"]
     # we're gonna overwrite the incoming url so that we can use our standard
-    # path for request handling, it's a bit like a redirect
+    # path for request handling
     req.url = "/#{temp_template_path}"
 
   # escape things so nothing nefarious gets by
