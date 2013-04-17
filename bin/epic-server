@@ -171,6 +171,8 @@ request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query
 
+  resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
+
   # check to see if we're running a 'development' request
   # really, this isn't for production so don't expect it to 
   # perform, as a matter of face, we're using sync calls here

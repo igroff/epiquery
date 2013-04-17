@@ -1,8 +1,4 @@
 #! /usr/bin/env bash
-# vim: ft=sh
-# first we're gonna update our config from any environment variables we have
-#Set up what we expect to have a good superforker environment. This is used from
-#start and stop before the first fork
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${DIR}/.nvm.sh"
 which node > /dev/null 2>&1
@@ -20,6 +16,7 @@ if [ -z "${HAS_NEEDED_VERSION}" ]; then
 fi
 
 nvm use $NEEDED_NODE_VERSION
+export ENVIRONMENT_SHA=`git log -1 --oneline | awk '{ print $1 }'`
 
 # we'll default our templates directory to the ./templates in the directory 
 # from which we're running
