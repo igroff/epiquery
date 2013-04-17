@@ -36,18 +36,11 @@
     "url":  "git://github.com/intimonkey/epic-query.git"
   },
   "scripts": {
-    "prestart": "./bin/setup-environment",
-    "prestop": "./bin/setup-environment",
-    "pretest": "./bin/setup-environment",
-    "start": "npm run-script update_templates ; forever start --append -o `pwd`/var/log/epic-server.out.log -e `pwd`/var/log/epic-server.err.log -l `pwd`/var/log/forever.log --watchDirectory ./bin --watch -c coffee bin/epic-server",
-    "debug": "forever --append -o `pwd`/var/log/epic-server.out.log -e `pwd`/var/log/epic-server.err.log -l `pwd`/var/log/forever.log --watchDirectory ./bin --watch -c coffee bin/epic-server",
+    "start": "source bin/setup-environment ; npm run-script update_templates ; forever start --append -o `pwd`/var/log/epic-server.out.log -e `pwd`/var/log/epic-server.err.log -l `pwd`/var/log/forever.log --watchDirectory ./bin --watch -c coffee bin/epic-server",
     "stop": "forever stopall",
     "status": "forever list",
-    "show-env": "bin/test",
-    "update_templates": "forever start --append -c coffee ./bin/epic-run_process_at_interval \"./bin/update_or_clone_repo ${npm_package_config_template_directory} ${npm_package_config_template_repository}\" ${npm_package_config_template_update_interval}",
-    "test": "pushd test/ ; ./run.sh ; popd",
-    "predeploy": "",
-    "postdeploy": ""
+    "update_templates": "source bin/setup-environment ;forever start --append -c coffee ./bin/epic-run_process_at_interval \"./bin/update_or_clone_repo ${npm_package_config_template_directory} ${npm_package_config_template_repository}\" ${npm_package_config_template_update_interval}",
+    "test": "pushd test/ ; ./run.sh ; popd"
   },
   "os": ["!win32"]
 }

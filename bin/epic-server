@@ -14,12 +14,13 @@ crypto    = require 'crypto'
 
 config =
   sql:
-    userName: process.env.npm_package_config_db_user
-    password: process.env.npm_package_config_db_password
-    server:   process.env.npm_package_config_db_host
+    userName: process.env.DATABASE_GLGLIVE_USER
+    password: process.env.DATABASE_GLGLIVE_PASSWORD
+    server:   process.env.DATABASE_GLGLIVE_SERVER
     options:
-      port:   process.env.npm_package_config_db_port
-  template_directory: process.env.npm_package_config_template_directory
+      port:   process.env.DATABASE_GLGLIVE_PORT
+  template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
+  http_port: process.env.EPIQUERY_HTTP_PORT
 
 # setting up some real simple logging
 log =
@@ -222,5 +223,5 @@ app.post '*', request_handler
 
 log.debug "debug logging enabled"
 log.info "Configuration: #{JSON.stringify config}"
-log.info "Starting epi server on port: #{process.env.npm_package_config_http_port}"
-app.listen process.env.npm_package_config_http_port
+log.info "Starting epi server on port: #{config.http_port}"
+app.listen config.http_port
