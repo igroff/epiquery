@@ -68,91 +68,51 @@ get_renderer_for_template = (template_path) ->
   renderers[path.extname template_path]
 # </template rendering>
 ##########################################################
+#
 
-class DeferManager
-  constructor: (@name) ->
-    @requested = {}
-
-  _trackerToString: (tracker) ->
-    log_items =
-      name: tracker.name
-      data: tracker.deferred.promise.valueOf()
-      hooked: tracker.hooked
-      isPending: tracker.deferred.promise.isPending()
-      isRejected: tracker.deferred.promise.isRejected()
-      isFulfilled: tracker.deferred.promise.isFulfilled()
-    JSON.stringify(log_items)
-
-  createEventResolver: (name) =>
-    tracker = @_getTrackerNamed name
-    tracker.hooked = true
-    createHandler = (tracker) =>
-      () =>
-        tracker.deferred.resolve()
-    createHandler tracker
-
-  createCallbackHandler: (name) =>
-    o = @_getTrackerNamed name
-    o.hooked = true
-    o.deferred.makeNodeResolver()
-
-  _getTrackerNamed: (name) =>
-    if typeof(@requested[name]) is "undefined"
-      deferred = Q.defer()
-      tracker =
-        deferred: deferred,
-        hooked: false,
-        name: name
-      deferred.promise.fin () => log.debug @_trackerToString tracker
-      @requested[name] = tracker
-    @requested[name]
-
-  getPromise: (name) =>
-    @getPromises(name)
-
-  getPromises: (name_or_list) =>
-    names = name_or_list
-    promises = []
-    if not _.isArray(name_or_list)
-      names = [name_or_list]
-    # todo: this one shouldn't create, it really needs to throw if
-    # there's no matching promise
-    for name in names
-      promises.push @_getTrackerNamed(name).deferred.promise
-    if promises.length is 1
-      return promises[0]
-    else
-      return promises
-
-  allPromised: () =>
-    Q.all(_.map(@requested, (v, k, o) -> v.deferred.promise))
-
+log_promise = (name, promise) ->
+  log.debug JSON.stringify({
+      name: name
+     ,isFulfilled: promise.isFulfilled()
+     ,isPending: promise.isPending()
+     ,isRejected: promise.isRejected()
+    })
 
 exec_query = (template_name, template_context, callback) ->
-  manager = new DeferManager('Used To Keep Track Of Our Deferreds')
   result_sets = []
   row_data = null
+  connect_deferred = Q.defer()
+  connect_end_deferred = Q.defer()
+  template_loaded_deferred = Q.defer()
+  request_complete_deferred = Q.defer()
+
   conn = new tedious.Connection config.sql
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
-  conn.on 'connect', manager.createEventResolver 'connect'
-  conn.on 'end', manager.createEventResolver 'connect-end'
+  conn.on 'connect', (err) ->
+    if err
+      log.error "error connecting #{error}"
+      connect_deferred.reject(err)
+    else
+      connect_deferred.resolve()
+  conn.on 'end', () -> connect_end_deferred.resolve()
 
   # need to read our template to get the contents
-  fs.readFile(path.join(path.normalize(config.template_directory), template_name),
+  fs.readFile(
+    path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'},
-    manager.createCallbackHandler 'template')
+    template_loaded_deferred.makeNodeResolver())
 
   # once we have a connection and our template contents, then we can continue
-  Q.all(manager.getPromises ['template', 'connect']).spread(
+  Q.all([template_loaded_deferred.promise, connect_deferred.promise]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
-    (template, ___) ->
+    (template) ->
       renderer = get_renderer_for_template template_name
-      rendered = renderer template, template_context
-      log.debug "rendered template\n #{rendered}"
-      request = new tedious.Request(rendered, manager.createCallbackHandler('request-complete'))
+      rendered = renderer template.toString(), template_context
+      log.debug "rendered template(type #{typeof rendered})\n #{rendered}"
+      request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver()) 
       # make sure that no matter how our request-complete event ends, we close the connection
-      manager.getPromises('request-complete').fin () -> conn.close()
-      manager.getPromise('request-complete').then () ->
+      request_complete_deferred.promise.fin () -> conn.close()
+      request_complete_deferred.promise.then () ->
         if row_data isnt null
           result_sets.push(row_data)
         log.event "request-completed #{arguments[0]}, #{arguments[1]}"
@@ -181,19 +141,31 @@ exec_query = (template_name, template_context, callback) ->
       conn.execSqlBatch request
   ).fail (error) -> callback error, result_sets # something in the spread failed
 
-  manager.getPromise('connect-end').then () ->
+  connect_end_deferred.promise.then () ->
     # this is silly, but... there's a case where tedious will fail to
     # connect but not raise a connect(err) event instead going straight to
     # raising 'end'.  So from the normal processing path, this should be
     # raised by the close of the connection which is done on the request-complete
     # trigger and we should then be done anyway so this will simply be redundant
-    manager._getTrackerNamed('connect').deferred.resolve()
+    log.event 'connect_end'
+    if connect_deferred.promise.isPending()
+      connect_deferred.reject('connection ended prior to sucessful connect')
 
-  manager.allPromised().then(
+  Q.all([
+    connect_deferred.promise,
+    connect_end_deferred.promise,
+    template_loaded_deferred.promise,
+    request_complete_deferred.promise
+  ]).then(
     () -> callback null, result_sets
   ).fail(
     (error) -> callback error, result_sets
-  )
+  ).fin( () ->
+      log_promise 'connect', connect_deferred.promise,
+      log_promise 'connect_end', connect_end_deferred.promise,
+      log_promise 'template_loaded', template_loaded_deferred.promise,
+      log_promise 'request_complete', request_complete_deferred.promise
+  ).done()
 
 escape_for_sql = (value) ->
   if isNaN value
@@ -227,10 +199,13 @@ request_handler = (req, resp) ->
   exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
     if error
       resp.statusCode = 500
-      log.error "#{error.message}\n#{error.stack}"
+      if typeof(error) is "string"
+        log.error error
+      else
+        log.error "#{error.message}\n#{error.stack}"
       result = {status: "error", message: error.message}
     else
-      log.debug JSON.stringify(rows)
+      log.debug "Result Set: #{JSON.stringify(rows)}"
       if rows.length > 1 # we have multiple result sets
         log.debug "#{rows.length}(s) result sets returned"
         result = []
@@ -251,6 +226,7 @@ app.get '*', request_handler
 app.post '*', request_handler
        
 
+log.debug "debug logging enabled"
 log.info "Configuration: #{JSON.stringify config}"
 log.info "Starting epi server on port: #{process.env.npm_package_config_http_port}"
 app.listen process.env.npm_package_config_http_port
