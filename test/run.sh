@@ -31,7 +31,6 @@ function run_dynamic_test(){
 run_test error
 run_test sysobjects
 run_test 'hello.mustache?name=Ian'
-run_test servername
 run_test echo.error
 run_test no.such.file
 
