@@ -1,3 +1,4 @@
 {
-  "status": "error"
+  "status": "error",
+  "message": "Incorrect syntax near the keyword 'from'."
 }

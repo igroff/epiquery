@@ -1,4 +1,4 @@
 {
   "status": "error",
-  "message": "ENOENT, open '/Users/iangroff/Development/epiquery/templates/test/no.such.file'"
+  "message": "ENOENT, open '/templates/test/no.such.file'"
 }

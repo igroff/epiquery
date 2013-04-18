@@ -201,11 +201,15 @@ request_handler = (req, resp) ->
   exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
     if error
       resp.statusCode = 500
+      result = {status: "error"}
       if typeof(error) is "string"
-        log.error error
+        result.message = error
       else
         log.error "#{error.message}\n#{error.stack}"
-      result = {status: "error", message: error.message}
+        result.message = error.message
+
+      # try and avoid giving too much away in our error message
+      result.message = result.message.replace process.cwd(), ""
     else
       log.debug "Result Set: #{JSON.stringify(rows)}"
       if rows.length > 1 # we have multiple result sets
