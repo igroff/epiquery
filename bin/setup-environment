@@ -1,5 +1,10 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT=$PWD
+PKG_BIN=`npm bin`
+if [ -e ${ROOT}/set_env ]; then
+  source ${ROOT}/set_env
+fi
 source "${DIR}/.nvm.sh"
 which node > /dev/null 2>&1
 if [ $? == 0 ]; then
@@ -52,7 +57,7 @@ export DATABASE_GLGLIVE_USER=${DATABASE_GLGLIVE_USER-sa}
 export DATABASE_GLGLIVE_PASSWORD=${DATABASE_GLGLIVE_PASSWORD-sa}
 export EPIQUERY_TEMPLATE_DIRECTORY=${EPIQUERY_TEMPLATE_DIRECTORY?"you need a template directory"}
 export EPIQUERY_TEMPLATE_REPOSITORY=${EPIQUERY_TEMPLATE_REPOSITORY?"need a template repository"}
-export EPIQUERY_TEPMLATE_UPDATE_INTERVAL=${EPIQUERY_TEMPLATE_UPDATE_INTERVAL-60000}
+export EPIQUERY_TEMPLATE_UPDATE_INTERVAL=${EPIQUERY_TEMPLATE_UPDATE_INTERVAL-60000}
 export EPIQUERY_HTTP_PORT=${EPIQUERY_HTTP_PORT-8080}
 
 mkdir -p ./var/log

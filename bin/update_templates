@@ -1,0 +1,12 @@
+#! /usr/bin/env bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+source ${DIR}/setup-environment 
+${PKG_BIN}/forever \
+  start \
+  --append \
+  -o ${ROOT}/var/log/update-templates.out.log \
+  -e ${ROOT}/var/log/update-templates.err.log \
+  -c ${PKG_BIN}/coffee ${ROOT}/bin/epic-run_process_at_interval \
+    "${ROOT}/bin/update_or_clone_repo ${EPIQUERY_TEMPLATE_DIRECTORY} ${EPIQUERY_TEMPLATE_REPOSITORY}" \
+    ${EPIQUERY_TEMPLATE_UPDATE_INTERVAL}
