@@ -26,15 +26,12 @@ config =
 log =
   error: (message) -> util.log "[ERROR] #{message}"
   info:  (message) -> util.log "[INFO] #{message}"
-  warn:  (message) -> util.log "[WARN] #{message}"
   debug: (message) ->
     if process.env.DEBUG
       util.log "[DEBUG] #{message}"
   event: (message) ->
     if process.env.DEBUG
       util.log "[EVENT] #{message}"
-
-console.log = log.info
 
 ##########################################################
 # <template rendering>
