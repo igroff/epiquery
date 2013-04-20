@@ -232,7 +232,7 @@ request_handler = (req, resp) ->
   # dropping any parent indicators (..)
   template_path = req.path[1..].replace(/\.\./g, '')
   log.debug "raw template path: #{template_path}"
-  if template_path.indexOf "mysql" isnt -1
+  if template_path.indexOf("mysql/") is 0
     template_path = template_path.replace /mysql\/?/g, ""
     isMysql = true
   log.debug "working template path: #{template_path}"
@@ -270,11 +270,12 @@ request_handler = (req, resp) ->
       else
         resp.send rows
   else
+    log.debug "processing T-SQL query"
     # escape things so nothing nefarious gets by
     _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
     exec_query template_path, context, (error, rows) ->
       if error
-        result = prepare_error error, resp
+        resp.send prepare_error error, resp
       else
         log.debug "Result Set: #{JSON.stringify(rows)}"
         if rows.length > 1 # we have multiple result sets
@@ -289,7 +290,7 @@ request_handler = (req, resp) ->
           result = _.map rows[0], (columns) ->
             _.object _.map columns, (column) ->
               [column.metadata.colName, column.value]
-    resp.send result
+        resp.send result
 
 app = express()
 app.use express.bodyParser()
