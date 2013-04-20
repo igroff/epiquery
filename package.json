@@ -13,7 +13,8 @@
     "tedious": "0.1.4",
     "dot": "1.0.1",
     "hogan.js": "2.0.0",
-    "q": "0.9.2"
+    "q": "0.9.2",
+    "mysql": "2.0.0-alpha7"
   },
   "bin": {
     "update_repo_dir": "bin/update_or_clone_repo"

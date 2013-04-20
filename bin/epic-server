@@ -10,7 +10,7 @@ _         = require 'underscore'
 Q         = require 'q'
 mustache  = require 'hogan.js'
 crypto    = require 'crypto'
-
+mysql     = require 'mysql'
 
 config =
   sql:
@@ -19,6 +19,11 @@ config =
     server:   process.env.DATABASE_GLGLIVE_SERVER
     options:
       port:   process.env.DATABASE_GLGLIVE_PORT
+  mysql:
+    host:     process.env.EPIQUERY_MYSQL_SERVER
+    user:     process.env.EPIQUERY_MYSQL_USER
+    password: process.env.EPIQUERY_MYSQL_PASSWORD
+    multipleStatements: true
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
 
@@ -161,6 +166,49 @@ exec_query = (template_name, template_context, callback) ->
       log_promise 'request_complete', request_complete_deferred.promise
   ).done()
 
+exec_mysql_query = (template_name, template_context, callback) ->
+  log.debug "exec_mysql_query"
+  connect_deferred = Q.defer()
+  request_deferred = Q.defer()
+
+  log.debug "using template: #{template_name}"
+  template_loaded = Q.nfcall(fs.readFile,
+    path.join(path.normalize(config.template_directory), template_name),
+    {encoding:'utf8'})
+
+  conn = mysql.createConnection config.mysql
+  conn.connect connect_deferred.makeNodeResolver()
+
+  Q.all([template_loaded, connect_deferred.promise]).spread( (template) ->
+    renderer = get_renderer_for_template template_name
+    log.debug "raw template: #{template}"
+    rendered_template = renderer template.toString(), template_context
+    log.debug "template context: #{JSON.stringify(template_context)}"
+    log.debug "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
+    conn.query rendered_template, request_deferred.makeNodeResolver()
+  ).fail( (error) -> callback error, null )
+
+  Q.all([
+    template_loaded,
+    request_deferred.promise,
+    connect_deferred.promise]
+  ).spread(
+    (template, rows, connect) ->
+      log.debug "rows: #{JSON.stringify rows}"
+      log.debug "connect info: #{JSON.stringify connect}"
+      # no docs yet found for this, but apparently the response is at
+      # least a two-part thing where the first item is the actual
+      # response, the second part is metadata
+      callback null, rows[0]
+  ).fail(
+    (error) -> callback error, null
+  ).fin( () ->
+    log_promise 'connect', connect_deferred.promise
+    log_promise 'template_loaded', template_loaded
+    log_promise 'request', request_deferred.promise
+  ).done()
+   
+
 escape_for_sql = (value) ->
   if isNaN value
     if _.isString value
@@ -177,6 +225,17 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
+  isMysql = false
+
+  # we allow people to provide any path relative to the templates directory
+  # so we'll remove the initial / and keep the rest of the path while conveniently
+  # dropping any parent indicators (..)
+  template_path = req.path[1..].replace(/\.\./g, '')
+  log.debug "raw template path: #{template_path}"
+  if template_path.indexOf "mysql" isnt -1
+    template_path = template_path.replace /mysql\/?/g, ""
+    isMysql = true
+  log.debug "working template path: #{template_path}"
 
   # check to see if we're running a 'development' request
   # really, this isn't for production so don't expect it to 
@@ -189,41 +248,47 @@ request_handler = (req, resp) ->
     temp_file_path = path.join(path.normalize(config.template_directory), temp_template_path)
     log.debug "writing template contents to tmp file at #{temp_file_path}"
     fs.writeFileSync temp_file_path, context["__template"]
-    # we're gonna overwrite the incoming url so that we can use our standard
-    # path for request handling
-    req.url = "/#{temp_template_path}"
+    template_path = temp_template_path
 
-  # escape things so nothing nefarious gets by
-  _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
-  # we allow people to provide any path relative to the templates directory
-  # so we'll remove the initial / and keep the rest of the path while conveniently
-  # dropping any parent indicators (..)
-  exec_query req.path[1..].replace(/\.\./g, ''), context, (error, rows) ->
-    if error
-      resp.statusCode = 500
-      result = {status: "error"}
-      if typeof(error) is "string"
-        result.message = error
-      else
-        log.error "#{error.message}\n#{error.stack}"
-        result.message = error.message
-
-      # try and avoid giving too much away in our error message
-      result.message = result.message.replace process.cwd(), ""
+  prepare_error = (error, resp) ->
+    resp.statusCode = 500
+    result = {status: "error"}
+    if typeof(error) is "string"
+      result.message = error
     else
-      log.debug "Result Set: #{JSON.stringify(rows)}"
-      if rows.length > 1 # we have multiple result sets
-        log.debug "#{rows.length}(s) result sets returned"
-        result = []
-        for result_set in rows
-          result.push _.map result_set, (columns) ->
+      result.message = error.message
+      log.error "#{error.message}\n#{error.stack}"
+    # try and avoid giving too much away in our error message
+    result.message = result.message.replace process.cwd(), ""
+    result
+
+  if isMysql
+    exec_mysql_query template_path, context, (error, rows) ->
+      log.debug "processing mysql query"
+      if error
+        resp.send prepare_error error, resp
+      else
+        resp.send rows
+  else
+    # escape things so nothing nefarious gets by
+    _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
+    exec_query template_path, context, (error, rows) ->
+      if error
+        result = prepare_error error, resp
+      else
+        log.debug "Result Set: #{JSON.stringify(rows)}"
+        if rows.length > 1 # we have multiple result sets
+          log.debug "#{rows.length}(s) result sets returned"
+          result = []
+          for result_set in rows
+            result.push _.map result_set, (columns) ->
+              _.object _.map columns, (column) ->
+                [column.metadata.colName, column.value]
+        else
+          log.debug "1 result set returned"
+          result = _.map rows[0], (columns) ->
             _.object _.map columns, (column) ->
               [column.metadata.colName, column.value]
-      else
-        log.debug "1 result set returned"
-        result = _.map rows[0], (columns) ->
-          _.object _.map columns, (column) ->
-            [column.metadata.colName, column.value]
     resp.send result
 
 app = express()
@@ -232,7 +297,7 @@ app.get '*', request_handler
 app.post '*', request_handler
        
 
-log.debug "debug logging enabled"
-log.info "Configuration: #{JSON.stringify config}"
 log.info "Starting epi server on port: #{config.http_port}"
+log.debug "Debug logging enabled"
+log.info "Configuration: #{JSON.stringify config}"
 app.listen config.http_port
