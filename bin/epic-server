@@ -209,14 +209,14 @@ exec_mysql_query = (template_name, template_context, callback) ->
   ).done()
    
 
-escape_for_sql = (value) ->
+escape_for_tsql = (value) ->
   if isNaN value
     if _.isString value
       return value.replace(/'/g, "''")
     else if _.isArray value
-      return _.map value, (item) -> escape_for_sql item
+      return _.map value, (item) -> escape_for_tsql item
     else if _.isObject value
-      _.each value, (v,k,o) -> o[k] = escape_for_sql v
+      _.each value, (v,k,o) -> o[k] = escape_for_tsql v
       return value
   return value
 
@@ -232,7 +232,7 @@ request_handler = (req, resp) ->
   # dropping any parent indicators (..)
   template_path = req.path[1..].replace(/\.\./g, '')
   log.debug "raw template path: #{template_path}"
-  if template_path.indexOf("mysql/") is 0
+  if template_path.indexOf("mysql") is 0
     template_path = template_path.replace /mysql\/?/g, ""
     isMysql = true
   log.debug "working template path: #{template_path}"
@@ -250,6 +250,7 @@ request_handler = (req, resp) ->
     fs.writeFileSync temp_file_path, context["__template"]
     template_path = temp_template_path
 
+  # just a helper to handle our errors for us
   prepare_error = (error, resp) ->
     resp.statusCode = 500
     result = {status: "error"}
@@ -272,7 +273,7 @@ request_handler = (req, resp) ->
   else
     log.debug "processing T-SQL query"
     # escape things so nothing nefarious gets by
-    _.each context, (v, k, o) -> o[k] = escape_for_sql(v)
+    _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
     exec_query template_path, context, (error, rows) ->
       if error
         resp.send prepare_error error, resp
