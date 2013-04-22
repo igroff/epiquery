@@ -3,3 +3,5 @@ var/
 set_env
 templates/
 test/tmp/
+.vagrant
+bin/
