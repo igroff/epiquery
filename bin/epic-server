@@ -67,7 +67,12 @@ renderers[""] = (template_string) ->
   template_string
 
 get_renderer_for_template = (template_path) ->
-  renderers[path.extname template_path]
+  renderer = renderers[path.extname template_path]
+  # hava 'default' renderer for any unrecognized extensions
+  if renderer
+    return renderer
+  else
+    return renderers[""]
 
 # </template rendering>
 ##########################################################
