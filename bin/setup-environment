@@ -1,15 +1,14 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT=$PWD
+NEEDED_NODE_VERSION='v0.10.3'
 source "${DIR}/.nvm.sh"
 which node > /dev/null 2>&1
 if [ $? == 0 ]; then
   CURRENT_NODE_VERSION=`node --version`
-  NEEDED_NODE_VERSION='v0.10.3'
   HAS_NEEDED_VERSION=`nvm ls | grep ${NEEDED_NODE_VERSION}`
 fi
 
-PKG_BIN=`npm bin`
 if [ -e ${ROOT}/set_env ]; then
   source ${ROOT}/set_env
 fi
@@ -20,6 +19,8 @@ if [ -z "${HAS_NEEDED_VERSION}" ]; then
   nvm alias default $NEEDED_NODE_VERSION
   npm update
 fi
+
+PKG_BIN=`npm bin`
 
 nvm use $NEEDED_NODE_VERSION
 export ENVIRONMENT_SHA=`git log -1 --oneline | awk '{ print $1 }'`
