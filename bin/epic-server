@@ -68,9 +68,44 @@ renderers[""] = (template_string) ->
 
 get_renderer_for_template = (template_path) ->
   renderers[path.extname template_path]
+
 # </template rendering>
 ##########################################################
-#
+
+##########################################################
+# <script decoration>
+# we're making a rest like interface here and as such we're
+# gonna enforce read only behavior on GETs and not on POSTs
+# we're also gonna provide some general help like setting an implicit
+# READ UNCOMMITTED on GETs because 99.99999999 percent of the time
+# that's what you want.  These changes based on rest-y GET or POST
+# request types will be handled by the handlers defined here which
+# will change the string that we ultimately send to the server
+prefix_handlers =
+  mssql:
+    get:  (sql) -> ""
+    post: (sql) -> ""
+  mysql:
+    get:  (sql) -> "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
+    post: (sql) -> ""
+
+suffix_handlers = 
+  mssql:
+    get:  (sql) -> ""
+    post: (sql) -> ""
+  mysql:
+    get:  (sql) -> ""
+    post: (sql) -> ""
+
+decorate_mssql_script = (request_type, sql) ->
+  t = request_type.toLowerCase()
+  "#{prefix_handlers.mssql[t](sql)}#{sql}#{suffix_handlers.mssql[t](sql)}"
+
+decorate_mysql_script = (request_type, sql) ->
+  t = request_type.toLowerCase()
+  "#{prefix_handlers.mysql[t](sql)}#{sql}#{suffix_handlers.mysql[t](sql)}"
+# </script decoration>
+##########################################################
 
 log_promise = (name, promise) ->
   log.debug JSON.stringify({
@@ -166,7 +201,7 @@ exec_query = (template_name, template_context, callback) ->
       log_promise 'request_complete', request_complete_deferred.promise
   ).done()
 
-exec_mysql_query = (template_name, template_context, callback) ->
+exec_mysql_query = (req_type, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
   connect_deferred = Q.defer()
   request_deferred = Q.defer()
@@ -178,14 +213,17 @@ exec_mysql_query = (template_name, template_context, callback) ->
 
   conn = mysql.createConnection config.mysql
   conn.connect connect_deferred.makeNodeResolver()
+  conn.on 'error', (error) -> callback error, null
 
   Q.all([template_loaded, connect_deferred.promise]).spread( (template) ->
     renderer = get_renderer_for_template template_name
     log.debug "raw template: #{template}"
     rendered_template = renderer template.toString(), template_context
+    rendered_template = decorate_mysql_script req_type, rendered_template
     log.debug "template context: #{JSON.stringify(template_context)}"
     log.debug "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
     conn.query rendered_template, request_deferred.makeNodeResolver()
+    conn.end()
   ).fail( (error) -> callback error, null )
 
   Q.all([
@@ -194,8 +232,6 @@ exec_mysql_query = (template_name, template_context, callback) ->
     connect_deferred.promise]
   ).spread(
     (template, rows, connect) ->
-      log.debug "rows: #{JSON.stringify rows}"
-      log.debug "connect info: #{JSON.stringify connect}"
       # no docs yet found for this, but apparently the response is at
       # least a two-part thing where the first item is the actual
       # response, the second part is metadata
@@ -225,21 +261,21 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
-  isMysql = false
+  isMySQLRequest = false
 
   # we allow people to provide any path relative to the templates directory
   # so we'll remove the initial / and keep the rest of the path while conveniently
   # dropping any parent indicators (..)
   template_path = req.path[1..].replace(/\.\./g, '')
   log.debug "raw template path: #{template_path}"
-  if template_path.indexOf("mysql") is 0
-    template_path = template_path.replace /mysql\/?/g, ""
-    isMysql = true
+  if template_path.indexOf("mysql") isnt -1
+    isMySQLRequest = true
   log.debug "working template path: #{template_path}"
 
-  # check to see if we're running a 'development' request
-  # really, this isn't for production so don't expect it to 
-  # perform, as a matter of face, we're using sync calls here
+  # check to see if we're running a 'development' request which is a
+  # request with a template included within, as opposed to referecing
+  # an existing template on disk really, this isn't for production so
+  # don't expect it to perform, as a matter of fact, we're using sync calls here
   if context["__template"]
     hasher = crypto.createHash 'sha1'
     hasher.update context["__template"]
@@ -250,8 +286,7 @@ request_handler = (req, resp) ->
     fs.writeFileSync temp_file_path, context["__template"]
     template_path = temp_template_path
 
-  # just a helper to handle our errors for us
-  prepare_error = (error, resp) ->
+  create_error_response = (error, resp) ->
     resp.statusCode = 500
     result = {status: "error"}
     if typeof(error) is "string"
@@ -263,11 +298,11 @@ request_handler = (req, resp) ->
     result.message = result.message.replace process.cwd(), ""
     result
 
-  if isMysql
-    exec_mysql_query template_path, context, (error, rows) ->
-      log.debug "processing mysql query"
+  if isMySQLRequest
+    log.debug "processing mysql query"
+    exec_mysql_query req.method, template_path, context, (error, rows) ->
       if error
-        resp.send prepare_error error, resp
+        resp.send create_error_response error, resp
       else
         resp.send rows
   else
@@ -276,7 +311,7 @@ request_handler = (req, resp) ->
     _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
     exec_query template_path, context, (error, rows) ->
       if error
-        resp.send prepare_error error, resp
+        resp.send create_error_response error, resp
       else
         log.debug "Result Set: #{JSON.stringify(rows)}"
         if rows.length > 1 # we have multiple result sets
