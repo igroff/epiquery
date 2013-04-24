@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <title></title>
+  <script type="text/javascript" src="js/angular.min.js"></script>
+  <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+  <script>
+    'use strict';
+    var EPIQUERY_SERVER = "localhost:9090";
+    var QUERY = "select table_name, column_name from information_schema.columns";
+
+    function Checklist(initVector){
+      if (typeof(initVector) === "object") {
+        this.name = initVector.name;
+        this.entries = initVector.entries;
+      } else {
+        this.name = initVector;
+        this.entries = [];
+      }
+      this.save = function() { throw "You shouldn't ever see this"; };
+      function pushEntries(entries){
+        return function(value) { entries.push({text: value}); }
+      }
+      this.push = pushEntries(this.entries);
+    }
+    
+    function checklistController($scope, $http){
+      console.log($http);
+      $http.post("http://" + EPIQUERY_SERVER + "/mysql", {"__template": QUERY})
+        .success(function(data) {
+          console.log(JSON.stringify(data));
+          $scope.results = data;
+        })
+        .error(function(data, status, headers, config){
+          console.log("error: " + status);
+        });
+
+    }
+  </script>
+
+</head>
+<body ng-app>
+    <div ng-controller="checklistController">
+      <form ng-submit="add_item()">
+      <input type="text" ng-model="checklist.name"/>
+      Databases
+      <ul>
+        <li ng-repeat="row in results">
+          {{row.table_name}} -> {{row.column_name}}
+        </li>
+        <input type="text" ng-model="item_text"/>
+        <input class="btn" type="submit" value="add">
+      </ul>
+      </form>
+    </div>
+    <script script src="/js/jquery.min.js"></script>
+    <script script src="/js/underscore.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+</body>
+</html>
