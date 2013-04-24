@@ -5,3 +5,4 @@ templates/
 test/tmp/
 .vagrant
 bin/v*
+bin/alias
