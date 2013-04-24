@@ -12,6 +12,7 @@ mustache  = require 'hogan.js'
 crypto    = require 'crypto'
 mysql     = require 'mysql'
 
+
 config =
   sql:
     userName: process.env.EPIQUERY_SQL_USER
@@ -291,6 +292,7 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
+  set_cors_headers resp
   isMySQLRequest = false
 
   # we allow people to provide any path relative to the templates directory
@@ -358,10 +360,20 @@ request_handler = (req, resp) ->
               [column.metadata.colName, column.value]
         resp.send result
 
+set_cors_headers = (resp) ->
+  resp.set 'Access-Control-Allow-Origin', "*"
+  resp.set 'Access-Control-Allow-Credentials', 'true'
+  resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
+  resp.set 'Access-Control-Allow-Headers', "Content-Type, X-Requested-With"
+
 app = express()
 app.use express.bodyParser()
 app.get '*', request_handler
 app.post '*', request_handler
+# CORS
+app.options '*', (req, resp) ->
+  set_cors_headers resp
+  resp.send ''
        
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
