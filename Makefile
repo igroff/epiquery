@@ -1,4 +1,4 @@
-.PHONY: start stop status test setup nuke clean
+.PHONY: start stop status test setup nuke clean environment
 SHELL=/usr/bin/env bash
 
 status: setup
@@ -10,8 +10,11 @@ stop: setup
 test: setup
 	cd ./test && ./run.sh
 
-setup: var/log node_modules var/run
+setup: var/log node_modules var/run environment
 	echo "setup complete"
+
+environment:
+	./bin/setup-environment
 
 nuke:
 	@rm -rf var/log
@@ -28,4 +31,4 @@ var/run:
 	mkdir -p $(CURDIR)/var/run
 
 node_modules: 
-	npm install  
+	source bin/setup-environment && npm install  

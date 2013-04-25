@@ -12,20 +12,46 @@ mustache  = require 'hogan.js'
 crypto    = require 'crypto'
 mysql     = require 'mysql'
 
+
 config =
   sql:
-    userName: process.env.DATABASE_GLGLIVE_USER
-    password: process.env.DATABASE_GLGLIVE_PASSWORD
-    server:   process.env.DATABASE_GLGLIVE_SERVER
+    userName: process.env.EPIQUERY_SQL_USER
+    password: process.env.EPIQUERY_SQL_PASSWORD
+    server:   process.env.EPIQUERY_SQL_SERVER
     options:
-      port:   process.env.DATABASE_GLGLIVE_PORT
+      port:   process.env.EPIQUERY_SQL_PORT
+  sql_ro:
+    userName: process.env.EPIQUERY_SQL_RO_USER
+    password: process.env.EPIQUERY_SQL_RO_PASSWORD
+    server:   process.env.EPIQUERY_SQL_SERVER
+    options:
+      port:   process.env.EPIQUERY_SQL_PORT
   mysql:
     host:     process.env.EPIQUERY_MYSQL_SERVER
     user:     process.env.EPIQUERY_MYSQL_USER
     password: process.env.EPIQUERY_MYSQL_PASSWORD
     multipleStatements: true
+  mysql_ro:
+    host:     process.env.EPIQUERY_MYSQL_SERVER
+    user:     process.env.EPIQUERY_MYSQL_RO_USER
+    password: process.env.EPIQUERY_MYSQL_RO_PASSWORD
+    multipleStatements: true
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
+
+# we support the ability to specify your connection details in the
+# request, this allows us to pull the correct connection info
+get_connection_config = (req, db_type) ->
+  conn_header = req.get "X-DB-CONNECTION"
+  if conn_header
+    return JSON.parse conn_header
+  else
+    # can write on POST, all others read only
+    if req.method is "POST"
+      return config[db_type]
+    else
+      return config["#{db_type}_ro"]
+
 
 # setting up some real simple logging
 log =
@@ -91,10 +117,10 @@ prefix_handlers =
     get:  (sql) -> ""
     post: (sql) -> ""
   mysql:
-    get:  (sql) -> "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
+    get:  (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
     post: (sql) -> ""
 
-suffix_handlers = 
+suffix_handlers =
   mssql:
     get:  (sql) -> ""
     post: (sql) -> ""
@@ -120,7 +146,7 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
-exec_query = (template_name, template_context, callback) ->
+exec_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
   connect_deferred           = Q.defer()
@@ -128,7 +154,7 @@ exec_query = (template_name, template_context, callback) ->
   template_loaded_deferred   = Q.defer()
   request_complete_deferred  = Q.defer()
 
-  conn = new tedious.Connection config.sql
+  conn = new tedious.Connection get_connection_config(req, 'sql')
   conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
   conn.on 'connect', connect_deferred.makeNodeResolver()
   conn.on 'end', () -> connect_end_deferred.resolve()
@@ -172,7 +198,7 @@ exec_query = (template_name, template_context, callback) ->
           result_sets.push(row_data)
         row_data = []
       # collecting our results, yes .4 of tedious allows this to be collected
-      # on th request callback, this just didn't get converted for the new version
+      # on the request callback, this just didn't get converted for the new version
       request.on 'row', (columns) -> log.event "row" ; row_data.push(columns)
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
@@ -206,7 +232,7 @@ exec_query = (template_name, template_context, callback) ->
       log_promise 'request_complete', request_complete_deferred.promise
   ).done()
 
-exec_mysql_query = (req_type, template_name, template_context, callback) ->
+exec_mysql_query = (req, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
   connect_deferred = Q.defer()
   request_deferred = Q.defer()
@@ -216,7 +242,7 @@ exec_mysql_query = (req_type, template_name, template_context, callback) ->
     path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'})
 
-  conn = mysql.createConnection config.mysql
+  conn = mysql.createConnection get_connection_config(req, 'mysql')
   conn.connect connect_deferred.makeNodeResolver()
   conn.on 'error', (error) -> callback error, null
 
@@ -224,9 +250,9 @@ exec_mysql_query = (req_type, template_name, template_context, callback) ->
     renderer = get_renderer_for_template template_name
     log.debug "raw template: #{template}"
     rendered_template = renderer template.toString(), template_context
-    rendered_template = decorate_mysql_script req_type, rendered_template
+    rendered_template = decorate_mysql_script req.method, rendered_template
     log.debug "template context: #{JSON.stringify(template_context)}"
-    log.debug "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
+    log.debug "rendered template\n #{rendered_template}"
     conn.query rendered_template, request_deferred.makeNodeResolver()
     conn.end()
   ).fail( (error) -> callback error, null )
@@ -266,6 +292,7 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
+  set_cors_headers resp
   isMySQLRequest = false
 
   # we allow people to provide any path relative to the templates directory
@@ -305,7 +332,7 @@ request_handler = (req, resp) ->
 
   if isMySQLRequest
     log.debug "processing mysql query"
-    exec_mysql_query req.method, template_path, context, (error, rows) ->
+    exec_mysql_query req, template_path, context, (error, rows) ->
       if error
         resp.send create_error_response error, resp
       else
@@ -314,7 +341,7 @@ request_handler = (req, resp) ->
     log.debug "processing T-SQL query"
     # escape things so nothing nefarious gets by
     _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-    exec_query template_path, context, (error, rows) ->
+    exec_query req, template_path, context, (error, rows) ->
       if error
         resp.send create_error_response error, resp
       else
@@ -333,12 +360,21 @@ request_handler = (req, resp) ->
               [column.metadata.colName, column.value]
         resp.send result
 
+set_cors_headers = (resp) ->
+  resp.set 'Access-Control-Allow-Origin', "*"
+  resp.set 'Access-Control-Allow-Credentials', 'true'
+  resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
+  resp.set 'Access-Control-Allow-Headers', "Content-Type, X-Requested-With"
+
 app = express()
 app.use express.bodyParser()
 app.get '*', request_handler
 app.post '*', request_handler
+# CORS
+app.options '*', (req, resp) ->
+  set_cors_headers resp
+  resp.send ''
        
-
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
 log.info "Configuration: #{JSON.stringify config}"

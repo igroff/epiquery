@@ -1,0 +1,48 @@
+[
+  {
+    "fieldCount": 0,
+    "affectedRows": 0,
+    "insertId": 0,
+    "serverStatus": 10,
+    "warningCount": 1,
+    "message": "",
+    "changedRows": 0
+  },
+  {
+    "fieldCount": 0,
+    "affectedRows": 2,
+    "insertId": 0,
+    "serverStatus": 42,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  {
+    "fieldCount": 0,
+    "affectedRows": 1,
+    "insertId": 0,
+    "serverStatus": 10,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  {
+    "fieldCount": 0,
+    "affectedRows": 1,
+    "insertId": 0,
+    "serverStatus": 10,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  [
+    {
+      "id": 1,
+      "name": "pants"
+    },
+    {
+      "id": 2,
+      "name": "slacks"
+    }
+  ]
+]
