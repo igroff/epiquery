@@ -1,58 +1,9 @@
 #epiquery
 
-## I don't care, just tell me how to start the thing
+## I don't care, just tell me how to use the thing
 
-Epiquery doesn't run on windows, at all.  Don't try, just deal.  Getting
-it running on Vagrant (Virtual Box) should be straight forward.  First
-you'll need to make sure you have an appropriate Vagrant box installed
-(e.g. glgub11-10). 
+curl http://query.glgroup.com/test/servername
 
-### configuration
-
-It's configured out of the box to do things in a somewhat sensible
-manner.  However you'll probably at least want to change some of the SQL
-config.  To configure what MS SQL server Epiquery connects to you can
-set the following environment variables (shown with their defaults).
-
-
-#### sql server configuration
-EPIQUERY_SQL_SERVER_PORT				1433
-EPIQUERY_SQL_SERVER							localhost
-EPIQUERY_SQL_USER								GLGROUP_LIVE
-EPIQUERY_SQL_PASSWORD						GLGROUP_LIVE
-EPIQUERY_SQL_RO_USER						GLGROUP_LIVE_RO
-EPIQUERY_SQL_RO_PASSWORD				GLGROUP_LIVE_RO_PASSWORD
-
-### mysql server configuration
-EPIQUERY_MYSQL_SERVER 					localhost
-EPIQUERY_MYSQL_USER 						root
-EPIQUERY_MYSQL_PASSWORD					"" - defaults to not set, no password
-EPIQUERY_MYSQL_RO_USER 					epiquery_ro
-EPIQUERY_MYSQL_RO_PASSWORD			"" - defaults to not set, no password
-
-### epiquery server configuration
-EPIQUERY_TEMPLATE_DIRECTORY 						-- must be specified to start
-EPIQUERY_TEMPLATE_REPOSITORY    				-- must be specified to start
-EPIQUERY_TEMPLATE_UPDATE_INTERVAL				60000
-EPIQUERY_HTTP_PORT											9090
-
-The template update interval is the period (in seconds) at which the
-templates will be checked for updates.  When running the system checks
-the provided template repository for updates, and if any are availble
-pulls them down on the update interval.
-
-As a convenience the startup process for eqiquery will source a file
-called .epiquery_env if such a file exists in the home directory of the
-user starting Epiquery (i.e. ~/.epiquery_env) to facilitate setting some
-of these variables.
-
-Then, from the root of the epiquery source tree you
-can:
-
-- vagrant up
-- vagrant ssh
-- cd vagrant
-- make start
 
 ### description
 
