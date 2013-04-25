@@ -117,10 +117,10 @@ prefix_handlers =
     get:  (sql) -> ""
     post: (sql) -> ""
   mysql:
-    get:  (sql) -> "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
+    get:  (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
     post: (sql) -> ""
 
-suffix_handlers = 
+suffix_handlers =
   mssql:
     get:  (sql) -> ""
     post: (sql) -> ""
@@ -252,7 +252,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     rendered_template = renderer template.toString(), template_context
     rendered_template = decorate_mysql_script req.method, rendered_template
     log.debug "template context: #{JSON.stringify(template_context)}"
-    log.debug "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
+    log.debug "rendered template\n #{rendered_template}"
     conn.query rendered_template, request_deferred.makeNodeResolver()
     conn.end()
   ).fail( (error) -> callback error, null )

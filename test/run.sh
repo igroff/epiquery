@@ -51,6 +51,9 @@ do_post 'prepare_a_statement_with_param.mustache?id=1'
 run_test do_stuff_but_return_no_results
 run_test array_in_context.mustache --data-binary '{"items":[{"name": "one"}, {"name": "two"}]}' -H 'Content-Type: application/json'
 run_test mysql_simple_select
+# GETs are going to be read uncommitted
+run_test mysql_txi_level 
+
 # want to make sure we get something simliar with and without a specific connection
 do_post mysql_multiple_row_select
 do_post mysql_multiple_row_select -H 'X-DB-CONNECTION: {"host":"localhost", "user":"epiquery"}'

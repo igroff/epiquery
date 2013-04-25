@@ -1,0 +1,17 @@
+[
+  {
+    "fieldCount": 0,
+    "affectedRows": 0,
+    "insertId": 0,
+    "serverStatus": 10,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  [
+    {
+      "VARIABLE_NAME": "TX_ISOLATION",
+      "VARIABLE_VALUE": "READ-UNCOMMITTED"
+    }
+  ]
+]
