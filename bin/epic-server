@@ -275,10 +275,31 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log_promise 'request', request_deferred.promise
   ).done()
    
+escape_for_msword_characters = (value) ->
+  special_characters = {
+    "8220": '"' # “
+    ,"8221": '"' # ”
+    ,"8216": "'" # ‘
+    ,"8217": "'" # ‘
+    ,"8211": "-" # –
+    ,"8212": "--" # —
+    ,"189": "1/2" # ½
+    ,"188": "1/4" # ¼
+    ,"190": "3/4" # ¾
+    ,"169": "(C)" # ©
+    ,"174": "(R)" # ®
+    ,"8230": "..." # …
+  }
+  _.each special_characters, (v,k,o) -> 
+      regex = new RegExp String.fromCharCode(k), "gi"
+      value = value.replace regex, v
+
+  return value
 
 escape_for_tsql = (value) ->
   if isNaN value
     if _.isString value
+      value = escape_for_msword_characters value
       return value.replace(/'/g, "''")
     else if _.isArray value
       return _.map value, (item) -> escape_for_tsql item
