@@ -35,7 +35,7 @@ the template during rendering as well.
 
 ### MySQL
 In order to query against the configued MySQL server the path to
-the tempalte needs to contain the string 'mysql' (no quotes).  This
+the template needs to contain the string 'mysql' (no quotes).  This
 string can occur anywhere in the path to the template, including the
 file name of the template.
 
