@@ -6,6 +6,9 @@ env:
         number_of_servers: 2
         number_of_cpu: 4
         server_memory_gb: 8
+        load_balancer_server_port: 9090
+        load_balancer_port: 80
+        load_balancer_monitor: /diagnostic
         stew: false
         clone_directory: epiquery
         bootstrap_shell_command: cd ~/epiquery/storm ; ./setup.sh ; cd ~/epiquery ; make start
