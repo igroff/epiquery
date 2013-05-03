@@ -1,5 +1,5 @@
 #!/usr/bin/env ./node_modules/coffee-script/bin/coffee
-
+# vim: ft=coffee
 tedious   = require 'tedious'
 path      = require 'path'
 express   = require 'express'

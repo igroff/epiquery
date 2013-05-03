@@ -35,7 +35,7 @@ the template during rendering as well.
 
 ### MySQL
 In order to query against the configued MySQL server the path to
-the tempalte needs to contain the string 'mysql' (no quotes).  This
+the template needs to contain the string 'mysql' (no quotes).  This
 string can occur anywhere in the path to the template, including the
 file name of the template.
 
@@ -45,7 +45,7 @@ a path that doesn't contain mysql will end up in a query being executed
 against the configured MS SQL server.
 
 #### Development
-It's possible to execute an arbitrary provided on the request.  If the
+It's possible to execute an arbitrary query provided on the request.  If the
 inbound request contains an element named __template, then the value of
 that element will be used as the contents of the template and rendered
 as per the normal execution path.  Specifically the value of the __template
