@@ -14,12 +14,16 @@ if [ $? != 0 ]; then
   ${DIR}/update_templates
 fi
 
-${PKG_BIN}/forever \
-  start \
-  --append \
-  -o ${ROOT}/var/log/epic-server.out.log \
-  -e ${ROOT}/var/log/epic-server.err.log \
-  --pidFile ${ROOT}/var/run/forever.pid \
-  --watchDirectory ${ROOT}/bin \
-  --watch \
-  -c ${PKG_BIN}/coffee bin/epic-server
+if [ "$1" == "profile" ]; then
+  ${DIR}/epic-server
+else
+  ${PKG_BIN}/forever \
+    start \
+    --append \
+    -o ${ROOT}/var/log/epic-server.out.log \
+    -e ${ROOT}/var/log/epic-server.err.log \
+    --pidFile ${ROOT}/var/run/forever.pid \
+    --watchDirectory ${ROOT}/bin \
+    --watch \
+    -c ${PKG_BIN}/coffee bin/epic-server
+fi

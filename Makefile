@@ -1,10 +1,12 @@
-.PHONY: start stop status test setup nuke clean environment
+.PHONY: start stop status test setup clean environment profile
 SHELL=/usr/bin/env bash
 
 status: setup
 	./bin/status
 start: setup
 	./bin/start
+profile: setup
+	./bin/start profile
 stop: setup
 	./bin/stop
 test: setup
