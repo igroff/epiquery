@@ -2,10 +2,32 @@
 
 ## I don't care, just tell me how to use the thing
 
-curl http://query.glgroup.com/test/servername
+   curl [http://query.glgroup.com/test/servername](http://query.glgroup.com/test/servername)
 
+## Important things to remember
 
-### description
+* The query service is available externally, currently it's protected by
+the Auth Proxy and you'll need to know the password to connect.
+* You can cause the service to connect to an arbitrary MySQL or MSSQ
+database by combining an existing template with the X-DB-CONNECTION
+header. 
+* The service does **nothing** more than help you with rendering a string
+that will be sent to the server, executed, and have the response
+returned to you in JSON.  Writing good SQL is up to the consumer e.g.
+parameterizing your queries.  There are some examples in the
+epiquery-templates repository in the test directory.  No magic here is a
+feature, it's important to understand how to write queries that perform
+well and work as expected.
+* No partials.  If you have multiple uses for the same query, it's the
+same query.  Otherwise you'll need to write a new one.  This serves
+multiple purposes:
+    * It keeps the queries obvious and easy to understand.
+    * It helps keep the usage of templates limited so that we confine the
+surface area for changes.
+* The documentation isn't complete, but neither is anything else. Please
+read the code and ask questions.
+
+### Description
 
 Epiquery is intended to be a **simple** solution for running queries
 against a relational databse (MySQL and MS SQL Server).  In additon
@@ -18,7 +40,7 @@ strings and execute them against the database it's connected to.  This
 pushes some of the logic that developers might otherwise ignore into
 their perview e.g. parameterization of queries.
 
-### what it does (technically)
+### What it does 
 
 Epiquery takes an inbound HTTP request and maps it to an existing
 template on disk.  Data from the inbound request is provided to the
@@ -31,9 +53,9 @@ during rendering as key value pairs.  It is also possible to provide
 JSON data as the body of the request and that will be made available to
 the template during rendering as well.
 
-### querying
+### Querying
 
-### MySQL
+#### MySQL
 In order to query against the configued MySQL server the path to
 the template needs to contain the string 'mysql' (no quotes).  This
 string can occur anywhere in the path to the template, including the
