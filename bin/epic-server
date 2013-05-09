@@ -91,9 +91,6 @@ renderers[".dot"] =  (template_string, context) ->
   templateFn = dot.template template_string
   templateFn context
 
-handlebars.registerHelper 'mssql_string', (value) ->
-  new handlebars.SafeString("'#{value}'")
-
 renderers[".mustache"] =  (template_string, context) ->
   template = handlebars.compile template_string
   template context
