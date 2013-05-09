@@ -1,16 +1,16 @@
 #!/usr/bin/env ./node_modules/coffee-script/bin/coffee
 # vim: ft=coffee
-tedious   = require 'tedious'
-path      = require 'path'
-express   = require 'express'
-fs        = require 'fs'
-dot       = require 'dot'
-util      = require 'util'
-_         = require 'underscore'
-Q         = require 'q'
-mustache  = require 'hogan.js'
-crypto    = require 'crypto'
-mysql     = require 'mysql'
+tedious     = require 'tedious'
+path        = require 'path'
+express     = require 'express'
+fs          = require 'fs'
+dot         = require 'dot'
+util        = require 'util'
+_           = require 'underscore'
+Q           = require 'q'
+crypto      = require 'crypto'
+mysql       = require 'mysql'
+handlebars  = require 'handlebars'
 
 
 config =
@@ -64,6 +64,19 @@ log =
     if process.env.DEBUG
       util.log "[EVENT] #{message}"
 
+# a helper method to handle escaping of values for SQL Server
+# to avoid the evil SQL Injection....
+escape_for_tsql = (value) ->
+  if isNaN value
+    if _.isString value
+      return value.replace(/'/g, "''")
+    else if _.isArray value
+      return _.map value, (item) -> escape_for_tsql item
+    else if _.isObject value
+      _.each value, (v,k,o) -> o[k] = escape_for_tsql v
+      return value
+  return value
+
 ##########################################################
 # <template rendering>
 
@@ -78,9 +91,12 @@ renderers[".dot"] =  (template_string, context) ->
   templateFn = dot.template template_string
   templateFn context
 
+handlebars.registerHelper 'mssql_string', (value) ->
+  new handlebars.SafeString("'#{value}'")
+
 renderers[".mustache"] =  (template_string, context) ->
-  template = mustache.compile template_string
-  template.render context
+  template = handlebars.compile template_string
+  template context
 
 # this is purely to facilitate testing
 renderers[".error"] = () ->
@@ -276,16 +292,6 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
   ).done()
    
 
-escape_for_tsql = (value) ->
-  if isNaN value
-    if _.isString value
-      return value.replace(/'/g, "''")
-    else if _.isArray value
-      return _.map value, (item) -> escape_for_tsql item
-    else if _.isObject value
-      _.each value, (v,k,o) -> o[k] = escape_for_tsql v
-      return value
-  return value
 
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
