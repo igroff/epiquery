@@ -350,7 +350,7 @@ request_handler = (req, resp) ->
 
   # check to see if we're running a 'development' request which is a
   # request with a template included within, as opposed to referecing
-  # an existing template on disk really
+  # an existing template on disk
   if context["__template"]
     hasher = crypto.createHash 'sha1'
     hasher.update context["__template"]
