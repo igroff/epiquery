@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-TEST_URL=http://localhost:${EPIQUERY_HTTP_PORT-9090}
+TEST_URL=http://localhost:${EPIQUERY_HTTP_PORT-6060}
 echo Using ${TEST_URL} for testing
 function run_test() {
   PATH_NAME=`echo $1 | sed -e s[?.*[[g`
