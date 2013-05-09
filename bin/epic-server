@@ -146,7 +146,7 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
-exec_query = (req, template_name, template_context, callback) ->
+exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
   connect_deferred           = Q.defer()
@@ -341,7 +341,7 @@ request_handler = (req, resp) ->
     log.debug "processing T-SQL query"
     # escape things so nothing nefarious gets by
     _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-    exec_query req, template_path, context, (error, rows) ->
+    exec_sql_query req, template_path, context, (error, rows) ->
       if error
         resp.send create_error_response error, resp
       else
