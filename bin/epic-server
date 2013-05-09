@@ -304,19 +304,6 @@ request_handler = (req, resp) ->
     isMySQLRequest = true
   log.debug "working template path: #{template_path}"
 
-  # check to see if we're running a 'development' request which is a
-  # request with a template included within, as opposed to referecing
-  # an existing template on disk really, this isn't for production so
-  # don't expect it to perform, as a matter of fact, we're using sync calls here
-  if context["__template"]
-    hasher = crypto.createHash 'sha1'
-    hasher.update context["__template"]
-    template_type = context["__template_type"] || "mustache"
-    temp_template_path = "debug/#{hasher.digest('hex')}.#{template_type}"
-    temp_file_path = path.join(path.normalize(config.template_directory), temp_template_path)
-    log.debug "writing template contents to tmp file at #{temp_file_path}"
-    fs.writeFileSync temp_file_path, context["__template"]
-    template_path = temp_template_path
 
   create_error_response = (error, resp) ->
     resp.statusCode = 500
@@ -330,35 +317,57 @@ request_handler = (req, resp) ->
     result.message = result.message.replace process.cwd(), ""
     result
 
-  if isMySQLRequest
-    log.debug "processing mysql query"
-    exec_mysql_query req, template_path, context, (error, rows) ->
-      if error
-        resp.send create_error_response error, resp
-      else
-        resp.send rows
-  else
-    log.debug "processing T-SQL query"
-    # escape things so nothing nefarious gets by
-    _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-    exec_sql_query req, template_path, context, (error, rows) ->
-      if error
-        resp.send create_error_response error, resp
-      else
-        log.debug "Result Set: #{JSON.stringify(rows)}"
-        if rows.length > 1 # we have multiple result sets
-          log.debug "#{rows.length}(s) result sets returned"
-          result = []
-          for result_set in rows
-            result.push _.map result_set, (columns) ->
+  run_query = (req, resp, template_path, context) ->
+    if isMySQLRequest
+      log.debug "processing mysql query"
+      exec_mysql_query req, template_path, context, (error, rows) ->
+        if error
+          resp.send create_error_response error, resp
+        else
+          resp.send rows
+    else
+      log.debug "processing T-SQL query"
+      # escape things so nothing nefarious gets by
+      _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
+      exec_sql_query req, template_path, context, (error, rows) ->
+        if error
+          resp.send create_error_response error, resp
+        else
+          log.debug "Result Set: #{JSON.stringify(rows)}"
+          if rows.length > 1 # we have multiple result sets
+            log.debug "#{rows.length}(s) result sets returned"
+            result = []
+            for result_set in rows
+              result.push _.map result_set, (columns) ->
+                _.object _.map columns, (column) ->
+                  [column.metadata.colName, column.value]
+          else
+            log.debug "1 result set returned"
+            result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
-        else
-          log.debug "1 result set returned"
-          result = _.map rows[0], (columns) ->
-            _.object _.map columns, (column) ->
-              [column.metadata.colName, column.value]
-        resp.send result
+          resp.send result
+
+  # check to see if we're running a 'development' request which is a
+  # request with a template included within, as opposed to referecing
+  # an existing template on disk really, this isn't for production so
+  # don't expect it to perform, as a matter of fact, we're using sync calls here
+  if context["__template"]
+    hasher = crypto.createHash 'sha1'
+    hasher.update context["__template"]
+    template_type = context["__template_type"] || "mustache"
+    temp_template_path = "debug/#{hasher.digest('hex')}.#{template_type}"
+    temp_file_path = path.join(path.normalize(config.template_directory), temp_template_path)
+    log.debug "writing template contents to tmp file at #{temp_file_path}"
+    fs.writeFile temp_file_path, context["__template"], (err) ->
+      if err
+        log.error "error writing debug template for dynamic request #{err}"
+      else
+        run_query req, resp, temp_template_path, context
+  else
+    # normal query path
+    run_query req, resp, template_path, context
+   
 
 set_cors_headers = (resp) ->
   resp.set 'Access-Control-Allow-Origin', "*"
