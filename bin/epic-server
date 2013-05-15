@@ -58,7 +58,8 @@ log =
   error: (message) -> util.log "[ERROR] #{message}"
   info:  (message) -> util.log "[INFO] #{message}"
   debug: (message) ->
-    util.log "[DEBUG] #{message}"
+    if process.env.DEBUG
+      util.log "[DEBUG] #{message}"
   event: (message) ->
     if process.env.DEBUG
       util.log "[EVENT] #{message}"
