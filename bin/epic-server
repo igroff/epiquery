@@ -39,6 +39,22 @@ config =
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
 
+#regex to replace MS special charactes
+special_characters = {
+  "8220": {"regex": new RegExp(String.fromCharCode(8220), "gi"), "replace": '"'} # “
+  ,"8221": {"regex": new RegExp(String.fromCharCode(8221), "gi"), "replace": '"'} # ”
+  ,"8216": {"regex":  new RegExp(String.fromCharCode(8216), "gi"), "replace": "'"} # ‘
+  ,"8217": {"regex": new RegExp(String.fromCharCode(8217), "gi"), "replace": "'"} # ’ 
+  ,"8211": {"regex": new RegExp(String.fromCharCode(8211), "gi"), "replace": "-"} # –
+  ,"8212": {"regex": new RegExp(String.fromCharCode(8212), "gi"), "replace": "--"} # —
+  ,"189": {"regex": new RegExp(String.fromCharCode(189), "gi"), "replace": "1/2"} # ½
+  ,"188": {"regex": new RegExp(String.fromCharCode(188), "gi"), "replace": "1/4"} # ¼
+  ,"190": {"regex": new RegExp(String.fromCharCode(190), "gi"), "replace": "3/4"} # ¾
+  ,"169": {"regex": new RegExp(String.fromCharCode(169), "gi"), "replace": "(C)"} # ©
+  ,"174": {"regex": new RegExp(String.fromCharCode(174), "gi"), "replace": "(R)"} # ®
+  ,"8230": {"regex": new RegExp(String.fromCharCode(8230), "gi"), "replace": "..."} # …
+}
+
 # we support the ability to specify your connection details in the
 # request, this allows us to pull the correct connection info
 get_connection_config = (req, db_type) ->
@@ -69,6 +85,8 @@ log =
 escape_for_tsql = (value) ->
   if isNaN value
     if _.isString value
+      _.each Object.keys(special_characters), (key) ->
+        value = value.replace special_characters[key].regex,special_characters[key].replace
       return value.replace(/'/g, "''")
     else if _.isArray value
       return _.map value, (item) -> escape_for_tsql item
@@ -288,8 +306,6 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log_promise 'request', request_deferred.promise
   ).done()
    
-
-
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
