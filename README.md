@@ -85,15 +85,15 @@ a convenience the startup of EpiQuery will source a file ~/.epiquery_env
 on start to allow setting of configuration values. Below is an example
 configuration:
 
-  export EPIQUERY_SQL_SERVER=10.211.55.4
-  export EPIQUERY_SQL_PORT=1433
-  export EPIQUERY_SQL_USER=GLGROUP_LIVE
-  export EPIQUERY_SQL_PASSWORD=GLGROUP_LIVE
-  export EPIQUERY_SQL_RO_USER=GLGROUP_LIVE
-  export EPIQUERY_SQL_RO_PASSWORD=GLGROUP_LIVE
-  export EPIQUERY_MYSQL_SERVER=localhost
-  export EPIQUERY_MYSQL_USER=root
-  export EPIQUERY_MYSQL_PASSWORD=
-  export EPIQUERY_MYSQL_RO_USER=epiquery_ro
-  export EPIQUERY_MYSQL_RO_PASSWORD=
-  export EPIQUERY_HTTP_PORT=9090
+    export EPIQUERY_SQL_SERVER=10.211.55.4
+    export EPIQUERY_SQL_PORT=1433
+    export EPIQUERY_SQL_USER=GLGROUP_LIVE
+    export EPIQUERY_SQL_PASSWORD=GLGROUP_LIVE
+    export EPIQUERY_SQL_RO_USER=GLGROUP_LIVE
+    export EPIQUERY_SQL_RO_PASSWORD=GLGROUP_LIVE
+    export EPIQUERY_MYSQL_SERVER=localhost
+    export EPIQUERY_MYSQL_USER=root
+    export EPIQUERY_MYSQL_PASSWORD=
+    export EPIQUERY_MYSQL_RO_USER=epiquery_ro
+    export EPIQUERY_MYSQL_RO_PASSWORD=
+    export EPIQUERY_HTTP_PORT=9090
