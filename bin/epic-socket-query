@@ -1,0 +1,21 @@
+#!/usr/bin/env ./node_modules/coffee-script/bin/coffee
+# vim: ft=coffee
+#
+# This file is to facilitate the testing of the socket.io interface to epiquery
+# it's run something like this
+#
+# As a convenience start will launch an arbitrary executable file in the directory
+# with it, so you can use it to launch this
+#
+# bin/start epic-socket-query --data='{"howdy": "ian"}' --template="/test/echo.dot"
+
+args = require('optimist').argv
+io_client = require 'socket.io-client'
+server = "http://#{process.env.EPIQUERY_SERVER}:#{process.env.EPIQUERY_HTTP_PORT}"
+socket = io_client.connect server
+console.log args.data
+console.log args.template
+socket.emit 'query', {"path": args.template, "data": JSON.parse(args.data||"{}")}
+socket.on 'query-response', (data) ->
+  console.log JSON.stringify data, null, 2
+  process.exit()

@@ -22,14 +22,17 @@ fi
 
 PKG_BIN=`npm bin`
 
-nvm use $NEEDED_NODE_VERSION
+VS=`nvm use $NEEDED_NODE_VERSION`
+if [ "${VS}" != "Now using node ${NEEDED_NODE_VERSION}" ]; then
+  echo "unable to set required node version ${NEEDED_NODE_VERSION}"
+  exit 1
+fi
 export ENVIRONMENT_SHA=`git log -1 --oneline | awk '{ print $1 }'`
 
 # we'll default our templates directory to the ./templates in the directory 
 # from which we're running
 if [ -z "${EPIQUERY_TEMPLATE_DIRECTORY}" ]; then
   export EPIQUERY_TEMPLATE_DIRECTORY=`pwd`/templates
-  echo "Using template directory ${EPIQUERY_TEMPLATE_DIRECTORY}"
 fi
 
 # if not provided we'll provide a 'sensible' default which looks like the
@@ -42,13 +45,12 @@ if [ -z "${EPIQUERY_TEMPLATE_REPOSITORY}" ]; then
 	TEMPLATE_BASENAME="${ORIG_BASENAME}-templates"
   fi
   export EPIQUERY_TEMPLATE_REPOSITORY=`echo ${ORIGIN} | sed -e s[${ORIG_BASENAME}[${TEMPLATE_BASENAME}[g`
-  echo "Setting template repository to ${EPIQUERY_TEMPLATE_REPOSITORY}"
 fi
 
 set_config(){
   if [ -z "${2}" ]; then
     echo Missing config value from environment for ${1}
-    exit 1
+    exit 2
   fi
   npm config set $1 $2
 }
@@ -68,3 +70,4 @@ export EPIQUERY_TEMPLATE_DIRECTORY=${EPIQUERY_TEMPLATE_DIRECTORY?"you need a tem
 export EPIQUERY_TEMPLATE_REPOSITORY=${EPIQUERY_TEMPLATE_REPOSITORY?"need a template repository"}
 export EPIQUERY_TEMPLATE_UPDATE_INTERVAL=${EPIQUERY_TEMPLATE_UPDATE_INTERVAL-60000}
 export EPIQUERY_HTTP_PORT=${EPIQUERY_HTTP_PORT-6060}
+export EPIQUERY_SERVER=${EPIQUERY_SERVER-localhost}

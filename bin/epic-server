@@ -11,6 +11,8 @@ Q           = require 'q'
 crypto      = require 'crypto'
 mysql       = require 'mysql'
 handlebars  = require 'handlebars'
+io          = require 'socket.io'
+http        = require 'http'
 
 
 config =
@@ -394,6 +396,7 @@ set_cors_headers = (resp) ->
   resp.set 'Access-Control-Allow-Headers', "Content-Type, X-Requested-With"
 
 app = express()
+server = http.createServer app
 app.use express.bodyParser()
 app.get '*', request_handler
 app.post '*', request_handler
@@ -401,8 +404,34 @@ app.post '*', request_handler
 app.options '*', (req, resp) ->
   set_cors_headers resp
   resp.send ''
-       
+
+io = io.listen(server)
+
+# socket.io
+io.sockets.on 'connection', (socket) ->
+  log.debug "socket connected"
+  socket.on 'query', (data) ->
+    log.debug "received query #{JSON.stringify data}"
+    req = resp = {}
+    # we're using the originally designed http handlers so
+    # we'll just put our data in one of the spots that is already
+    # checked, and count on the magic of Javscript to handle the 
+    # missing stuff gracefully
+    req.body = data.data
+    req.path = data.path
+    req.method = req.method || "get"
+    # the only thing done with the response that is interesting is
+    # calling send at the end of processing.  So we're gonna make
+    # a send method that will support that will send the response and
+    # will help identify the response (the path of the template)
+    resp.send = (data) ->
+      log.debug "response for #{req.path}"
+      socket.emit('query-response', {path: req.path, results: data})
+    resp.set = ->
+    req.get = ->
+    request_handler req, resp
+
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
 log.info "Configuration: #{JSON.stringify config}"
-app.listen config.http_port
+server.listen config.http_port

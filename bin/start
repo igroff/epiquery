@@ -1,11 +1,6 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/setup-environment
-${PKG_BIN}/forever list | grep epic-server > /dev/null 2>&1
-if [ $? == 0 ]; then
-  echo "server already running"
-  exit
-fi
 
 # if we don't already have our template updater running, we
 # start it
@@ -16,7 +11,12 @@ fi
 
 if [ "$1" == "profile" ]; then
   ${DIR}/epic-server
-else
+elif [ "$1x" == "x" ]; then
+  ${PKG_BIN}/forever list | grep epic-server > /dev/null 2>&1
+  if [ $? == 0 ]; then
+    echo "server already running"
+    exit
+  fi
   ${PKG_BIN}/forever \
     start \
     --append \
@@ -26,4 +26,6 @@ else
     --watchDirectory ${ROOT}/bin \
     --watch \
     -c ${PKG_BIN}/coffee bin/epic-server
+else
+  "${DIR}/$@"
 fi
