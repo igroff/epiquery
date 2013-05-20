@@ -397,7 +397,7 @@ set_cors_headers = (resp) ->
   resp.set 'Access-Control-Allow-Origin', "*"
   resp.set 'Access-Control-Allow-Credentials', 'true'
   resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
-  resp.set 'Access-Control-Allow-Headers', "Content-Type, X-Requested-With"
+  resp.set 'Access-Control-Allow-Headers', "*"
 
 app = express()
 server = http.createServer app
