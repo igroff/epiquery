@@ -149,17 +149,21 @@ prefix_handlers =
   mssql:
     get:  (sql) -> ""
     post: (sql) -> ""
+    head: (sql) -> ""
   mysql:
     get:  (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
     post: (sql) -> ""
+    head: (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
 
 suffix_handlers =
   mssql:
     get:  (sql) -> ""
     post: (sql) -> ""
+    head: (sql) -> ""
   mysql:
     get:  (sql) -> ""
     post: (sql) -> ""
+    head: (sql) -> ""
 
 decorate_mssql_script = (request_type, sql) ->
   t = request_type.toLowerCase()
@@ -307,7 +311,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log_promise 'template_loaded', template_loaded
     log_promise 'request', request_deferred.promise
   ).done()
-   
+
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
