@@ -6,6 +6,9 @@
 
 ## Important things to remember
 
+* If you're trying to get this to run locally, you probably shouldn't be.
+If you're still trying you probably want to see the Environment
+( Configuration ) section at the bottom.
 * The query service is available externally, currently it's protected by
 the Auth Proxy and you'll need to know the password to connect.
 * You can cause the service to connect to an arbitrary MySQL or MSSQ
@@ -75,5 +78,24 @@ element is written into a file under the template directory named based
 on the hash of the contents, then the request processing will proceed as 
 normal. The default template engine is mustache, however it is possible to
 choose alternates using a request element named __template_type
+
+### Environment ( Configuration )
+It is possible to configure EpiQuery by using environment variables, as
+a convenience the startup of EpiQuery will source a file ~/.epiquery_env
+on start to allow setting of configuration values. Below is an example
+configuration:
+
+export EPIQUERY_SQL_SERVER=10.211.55.4
+export EPIQUERY_SQL_PORT=1433
+export EPIQUERY_SQL_USER=GLGROUP_LIVE
+export EPIQUERY_SQL_PASSWORD=GLGROUP_LIVE
+export EPIQUERY_SQL_RO_USER=GLGROUP_LIVE
+export EPIQUERY_SQL_RO_PASSWORD=GLGROUP_LIVE
+export EPIQUERY_MYSQL_SERVER=localhost
+export EPIQUERY_MYSQL_USER=root
+export EPIQUERY_MYSQL_PASSWORD=
+export EPIQUERY_MYSQL_RO_USER=epiquery_ro
+export EPIQUERY_MYSQL_RO_PASSWORD=
+export EPIQUERY_HTTP_PORT=9090
 
 
