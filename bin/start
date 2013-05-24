@@ -11,6 +11,8 @@ fi
 
 if [ "$1" == "profile" ]; then
   ${DIR}/epic-server
+elif [ "$1" == "managed" ]; then
+  ${PKG_BIN}/coffee bin/epic-server 
 elif [ "$1x" == "x" ]; then
   ${PKG_BIN}/forever list | grep `pwd` | grep epic-server > /dev/null 2>&1
   if [ $? == 0 ]; then
