@@ -4,9 +4,11 @@ source ${DIR}/setup-environment
 
 # if we don't already have our template updater running, we
 # start it
-${PKG_BIN}/forever list | grep update_or_clone_repo > /dev/null 2>&1
+${PKG_BIN}/forever list | grep `pwd` |  grep update_or_clone_repo > /dev/null 2>&1
 if [ $? != 0 ]; then
   ${DIR}/update_templates
+else
+  echo template update already running
 fi
 
 if [ "$1" == "profile" ]; then
