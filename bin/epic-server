@@ -404,6 +404,8 @@ server = http.createServer app
 app.use express.bodyParser()
 app.get '*', request_handler
 app.post '*', request_handler
+app.head '*', (req, resp) ->
+  resp.send ''
 # CORS
 app.options '*', (req, resp) ->
   set_cors_headers resp
