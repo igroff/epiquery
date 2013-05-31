@@ -7,8 +7,6 @@ source ${DIR}/setup-environment
 ${PKG_BIN}/forever list | grep `pwd` |  grep update_or_clone_repo > /dev/null 2>&1
 if [ $? != 0 ]; then
   ${DIR}/update_templates
-else
-  echo template update already running
 fi
 
 if [ "$1" == "profile" ]; then
