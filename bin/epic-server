@@ -213,7 +213,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       log.debug "rendered template(type #{typeof rendered})\n #{rendered}"
       request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver()) 
       # make sure that no matter how our request-complete event ends, we close the connection
-      request_complete_deferred.promise.fin () -> conn.close()
+      request_complete_deferred.promise.finally () -> conn.close()
       request_complete_deferred.promise.then () ->
         if row_data isnt null
           result_sets.push(row_data)
@@ -262,7 +262,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
     () -> callback null, result_sets
   ).fail(
     (error) -> callback error, result_sets
-  ).fin( () ->
+  ).finally( () ->
       log_promise 'connect', connect_deferred.promise,
       log_promise 'connect_end', connect_end_deferred.promise,
       log_promise 'template_loaded', template_loaded_deferred.promise,
@@ -291,8 +291,8 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log.debug "template context: #{JSON.stringify(template_context)}"
     log.debug "rendered template\n #{rendered_template}"
     conn.query rendered_template, request_deferred.makeNodeResolver()
-    conn.end()
-  ).fail( (error) -> callback error, null )
+  ).fail( (error) -> callback error, null
+  ).finally( () -> conn.end() )
 
   Q.all([
     template_loaded,
@@ -306,7 +306,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
       callback null, rows[0]
   ).fail(
     (error) -> callback error, null
-  ).fin( () ->
+  ).finally( () ->
     log_promise 'connect', connect_deferred.promise
     log_promise 'template_loaded', template_loaded
     log_promise 'request', request_deferred.promise
@@ -404,6 +404,8 @@ server = http.createServer app
 app.use express.bodyParser()
 app.get '*', request_handler
 app.post '*', request_handler
+app.head '*', (req, resp) ->
+  resp.send ''
 # CORS
 app.options '*', (req, resp) ->
   set_cors_headers resp
