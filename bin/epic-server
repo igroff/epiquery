@@ -113,7 +113,7 @@ renderers[".dot"] =  (template_string, context) ->
 
 renderers[".mustache"] =  (template_string, context) ->
   template = hogan.compile template_string
-  template context
+  template.render context
 
 # this is purely to facilitate testing
 renderers[".error"] = () ->
