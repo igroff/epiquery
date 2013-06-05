@@ -10,7 +10,7 @@ _           = require 'underscore'
 Q           = require 'q'
 crypto      = require 'crypto'
 mysql       = require 'mysql'
-handlebars  = require 'hogan.js'
+hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
 
