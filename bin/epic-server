@@ -10,7 +10,7 @@ _           = require 'underscore'
 Q           = require 'q'
 crypto      = require 'crypto'
 mysql       = require 'mysql'
-handlebars  = require 'handlebars'
+handlebars  = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
 
@@ -112,7 +112,7 @@ renderers[".dot"] =  (template_string, context) ->
   templateFn context
 
 renderers[".mustache"] =  (template_string, context) ->
-  template = handlebars.compile template_string
+  template = hogan.compile template_string
   template context
 
 # this is purely to facilitate testing
