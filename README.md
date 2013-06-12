@@ -13,7 +13,7 @@ If you're still trying you probably want to see the Environment
 the Auth Proxy and you'll need to know the password to connect.
 * You can cause the service to connect to an arbitrary MySQL or MSSQ
 database by combining an existing template with the X-DB-CONNECTION
-header. 
+header. See the DB Override section for more details.
 * The service does **nothing** more than help you with rendering a string
 that will be sent to the server, executed, and have the response
 returned to you in JSON.  Writing good SQL is up to the consumer e.g.
@@ -97,3 +97,15 @@ configuration:
     export EPIQUERY_MYSQL_RO_USER=epiquery_ro
     export EPIQUERY_MYSQL_RO_PASSWORD=
     export EPIQUERY_HTTP_PORT=9090
+
+### DB Override
+You can override the default database connections by passing a
+X-DB-CONNECTION
+header on a per request basis. Of course the DB must be accesible from
+the epiquery server.
+
+Example:
+
+curl -v -H
+'X-DB-CONNECTION:{"userName":"sa","password":"xxx","server":"10.211.55.3","port":"1433"}'
+http://query.glgroup.com/test/sysobjects
