@@ -1,21 +1,18 @@
 {"howdy": "ian", "val":1}
 /test/mysql_echo.dot
-{
-  "path": "/test/mysql_echo.dot",
-  "results": [
+[
+  {
+    "fieldCount": 0,
+    "affectedRows": 0,
+    "insertId": 0,
+    "serverStatus": 10,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  [
     {
-      "fieldCount": 0,
-      "affectedRows": 0,
-      "insertId": 0,
-      "serverStatus": 10,
-      "warningCount": 0,
-      "message": "",
-      "changedRows": 0
-    },
-    [
-      {
-        "everything": " howdy=ian  val=1 "
-      }
-    ]
+      "everything": " howdy=ian  val=1 "
+    }
   ]
-}
+]

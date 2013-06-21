@@ -15,7 +15,13 @@ server = "http://#{process.env.EPIQUERY_SERVER}:#{process.env.EPIQUERY_HTTP_PORT
 socket = io_client.connect server
 console.log args.data
 console.log args.template
-socket.emit 'query', {"path": args.template, "data": JSON.parse(args.data||"{}")}
-socket.on 'query-response', (data) ->
+queryData = 
+  path: args.template
+  data: JSON.parse(args.data||"{}")
+socket.emit 'query', queryData, (data) ->
   console.log JSON.stringify data, null, 2
   process.exit()
+timoutHandler = () ->
+  console.log "query timed out"
+  process.exit(-1)
+setTimeout timoutHandler, 500

@@ -416,7 +416,7 @@ io = io.listen(server)
 # socket.io
 io.sockets.on 'connection', (socket) ->
   log.debug "socket connected"
-  socket.on 'query', (data) ->
+  socket.on 'query', (data, cb) ->
     log.debug "received query #{JSON.stringify data}"
     req = resp = {}
     # we're using the originally designed http handlers so
@@ -428,11 +428,9 @@ io.sockets.on 'connection', (socket) ->
     req.method = req.method || "get"
     # the only thing done with the response that is interesting is
     # calling send at the end of processing.  So we're gonna make
-    # a send method that will support that will send the response and
-    # will help identify the response (the path of the template)
+    # a send method that will support that
     resp.send = (data) ->
-      log.debug "response for #{req.path}"
-      socket.emit('query-response', {path: req.path, results: data})
+      cb(data)
     resp.set = ->
     req.get = ->
     request_handler req, resp
