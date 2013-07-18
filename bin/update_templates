@@ -9,4 +9,4 @@ ${PKG_BIN}/forever \
   -e ${ROOT}/var/log/update-templates.err.log \
   -c ${PKG_BIN}/coffee ${ROOT}/bin/epic-run_process_at_interval \
     "${ROOT}/bin/update_or_clone_repo ${EPIQUERY_TEMPLATE_DIRECTORY} ${EPIQUERY_TEMPLATE_REPOSITORY}" \
-    ${EPIQUERY_TEMPLATE_UPDATE_INTERVAL}
+    ${EPIQUERY_TEMPLATE_UPDATE_INTERVAL-60000}
