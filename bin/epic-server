@@ -435,10 +435,9 @@ io.sockets.on 'connection', (socket) ->
     req.path = data.path
     req.method = req.method || "get"
     # the only thing done with the response that is interesting is
-    # calling send at the end of processing.  So we're gonna make
+    # calling respond at the end of processing.  So we're gonna make
     # a send method that will support that
-    resp.send = (data) ->
-      cb(data)
+    resp.respond = (data) -> cb(data)
     resp.set = ->
     req.get = ->
     request_handler req, resp
