@@ -95,4 +95,4 @@ run_dynamic_test mysql_login_as_configd 'select user()'
 run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"GLGROUP_LIVE", "password":"GLGROUP_LIVE", "server":"10.211.55.4"}'
 run_dynamic_test sql_server_login_as_configd 'select suser_name()' 
 
-run_socket_test socket_mysql_echo.dot mysql_echo.dot "{'howdy':'ian','val':1}"
+run_socket_test socket_mysql_echo.dot mysql_echo.dot '{"howdy": "ian", "val":1}'
