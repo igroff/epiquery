@@ -12,7 +12,7 @@ profile: setup
 stop: setup
 	./bin/stop
 test: setup
-	cd ./test && ./run.sh
+	cd ./test && ./run_old.sh
 
 setup: var/log node_modules var/run environment
 	echo "setup complete"
