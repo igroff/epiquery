@@ -347,16 +347,16 @@ request_handler = (req, resp) ->
       log.debug "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
         if error
-          resp.send create_error_response error, resp
+          resp.respond create_error_response(error, resp)
         else
-          resp.send rows
+          resp.respond rows
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows) ->
         if error
-          resp.send create_error_response error, resp
+          resp.respond create_error_response(error, resp)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
@@ -371,7 +371,7 @@ request_handler = (req, resp) ->
             result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
-          resp.send result
+          resp.respond result
 
   # check to see if we're running a 'development' request which is a
   # request with a template included within, as opposed to referecing
@@ -399,11 +399,19 @@ set_cors_headers = (resp) ->
   resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
   resp.set 'Access-Control-Allow-Headers', "*"
 
+request_helper = (req, resp) ->
+  if req.query['callback']
+    resp.respond = () ->
+      resp.jsonp.apply(resp, _.toArray(arguments))
+  else
+    resp.respond = resp.send
+  request_handler req, resp
+
 app = express()
 server = http.createServer app
 app.use express.bodyParser()
-app.get '*', request_handler
-app.post '*', request_handler
+app.get '*', request_helper
+app.post '*', request_helper
 app.head '*', (req, resp) ->
   resp.send ''
 # CORS
