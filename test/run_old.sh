@@ -47,9 +47,9 @@ function run_socket_test(){
   TEST_NAME=$1
   TEMPLATE_NAME=$2
   DATA=$3
-  pushd ..
+  pushd .. > /dev/null 2>&1
   ./bin/start epic-socket-query --template="/test/${TEMPLATE_NAME}" --data="${DATA}" > test/tmp/${TEST_NAME}.result
-  popd
+  popd > /dev/null 2>&1
 
   diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
   DIFF_RESULT=$?
