@@ -13,6 +13,7 @@ stop: setup
 	./bin/stop
 test: setup
 	cd ./test && ./run_old.sh
+	./test/run.sh
 
 setup: var/log node_modules var/run environment
 	echo "setup complete"
