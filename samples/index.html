@@ -1,0 +1,148 @@
+<!doctype html>
+<html ng-app="epiquery-tool">
+<head>
+<title></title>
+  <style>
+    results { width: 90%; margin-left: auto; margin-right:auto; }
+  </style>
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script src="/js/lodash.min.js" type="text/javascript"></script>
+  <script src="http://localhost:9999/variablesky.client"></script>
+  <script type="text/javascript">
+    _.extend($,{
+      parseQueryString: function(str){
+        var nvpair = {};
+        var qs = str || window.location.search.replace('?', '');
+        var pairs = qs.split('&');
+        $.each(pairs, function(i, v){
+          var pair = v.split('=');
+          nvpair[pair[0]] = pair[1];
+        });
+        return nvpair;
+      }
+    });
+    var angApp = angular.module('epiquery-tool', []);
+    var vsClient = variablesky.connect("ws://localhost:9999/variablesky");
+    vsClient.linkToAngularScope = function(scope, href, modelName){
+        return (new function(){
+          var link = null;
+          vsClient.on('open', function(){
+            link = vsClient.link(href);
+            link.on('link', function(data){
+              scope[modelName] = data;
+              scope.$apply();
+            });
+          });
+          this.save = function(){
+            link.save(scope[modelName]);
+          }
+      });
+    }
+    vsClient.autoSaveLinkToAngularScope = function(scope, href, modelName){
+        return (new function(){
+          var link = null;
+          vsClient.on('open', function(){
+            link = vsClient.link(href);
+            var timeoutHandle = null;
+            var valueFromServer = null;
+            link.on('link', function(data){
+              // if we have a timeout handle we're just gonna blow it
+              // away because our update from the server has precedent
+              if (timeoutHandle){
+                clearTimeout(timeoutHandle);
+              }
+              valueFromServer = data;
+              scope[modelName] = data;
+              scope.$apply();
+            });
+            saveLink = function(newVal, oldVal, scope){
+              // only if it's different do we have work to do
+              if (!(newVal === oldVal) && !(newVal === valueFromServer)){
+                // if we have a timeoutHandle then a save is already
+                // scheduled, so that will catch the change
+                if (timeoutHandle == null){
+                  console.log("saving");
+                  timeoutHandle = setTimeout(
+                    function() {
+                      timeoutHandle = null;
+                      link.save(scope[modelName]);
+                    }, 500);
+                }
+              }
+            }
+            scope.$watch(modelName, saveLink);
+          });
+        });
+    }
+
+    function QueryController($scope, $http){
+      var lastTemplateLink  = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/template', 'lastTemplate');
+      var templateText      = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/templateText', 'templateText');
+      var lastRequestData   = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/requestParams', 'requestData');
+
+      $scope.templateEngines = ['dot', 'mustache'];
+      $scope.selectedEngine = $scope.templateEngines[1];
+      var getEpiUrl = function(templateName){
+        //epiUrl = 'https://passwdsvc:YepRud37@query.glgroup.com/' + $scope.lastTemplate + "?callback=?"
+        if (templateName){
+          return 'http://localhost:9090/' + templateName + '?callback=JSON_CALLBACK';
+        } else {
+          return 'http://localhost:9090';
+        }
+      }
+      var displayResults = function(data){
+          $scope.results = JSON.stringify(data, null, 2);
+          console.log($scope.results);
+      };
+      $scope.doQuery = function(){
+        console.log("doQuery(" + $scope.lastTemplate + ")");
+        $http.jsonp(getEpiUrl($scope.lastTemplate)).
+          success(displayResults).
+          error(
+            function(data, status, headers, config){
+              console.log("Error " + status + " " + data);
+            }
+        );
+        lastTemplateLink.save();
+      }
+      $scope.sendTemplate = function(){
+        console.log("sendTemplate()");
+        console.log(lastTemplateLink == templateText);
+        templateText.save();
+        lastRequestData.save();
+        config = $.parseQueryString($scope.requestData);
+        _.extend(config, {
+          "__template": $scope.templateText,
+          "__template_type": $scope.selectedEngine
+        });
+        console.log(config);
+        $http.post(getEpiUrl(), config).
+          success(displayResults).
+          error(
+            function(data, status, headers, config){
+              console.log("error during sendTemplate()");
+              console.log(data);
+              displayResults(data);
+            }
+          );
+      }
+    }
+  </script>
+</head>
+<body>
+  <span ng-controller="QueryController">
+    <label for="requestData">Request Data: </label><input size=100 type="text" ng-model="requestData">
+    <p>
+    <label for="lastTemplate">Template: </label><input size=100 type="text" ng-model="lastTemplate" >
+    <input type="button" value="Run" ng-click="doQuery()"/>
+    <div style="border: 1px solid black;">
+      <label for="templateText"></label><textarea id="templateText" ng-model="templateText"></textarea>
+      <select ng-model="selectedEngine" ng-options="name for name in templateEngines">
+      </select>
+      <input ng-click="sendTemplate()" type="button" value="Run"/>
+    </div>
+    <pre class="prettyprint" ng-bind-html-unsafe="results"></pre>
+  </span>
+</body>
+</html>

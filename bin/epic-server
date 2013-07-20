@@ -317,7 +317,7 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query, req.headers
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
-  set_cors_headers resp
+  set_cors_headers req, resp
   isMySQLRequest = false
 
   # we allow people to provide any path relative to the templates directory
@@ -393,11 +393,11 @@ request_handler = (req, resp) ->
     run_query req, resp, template_path, context
    
 
-set_cors_headers = (resp) ->
+set_cors_headers = (req, resp) ->
   resp.set 'Access-Control-Allow-Origin', "*"
   resp.set 'Access-Control-Allow-Credentials', 'true'
   resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
-  resp.set 'Access-Control-Allow-Headers', "*"
+  resp.set 'Access-Control-Allow-Headers', req.headers['access-control-request-headers'] or '*'
 
 request_helper = (req, resp) ->
   if req.query['callback']
@@ -416,7 +416,7 @@ app.head '*', (req, resp) ->
   resp.send ''
 # CORS
 app.options '*', (req, resp) ->
-  set_cors_headers resp
+  set_cors_headers req, resp
   resp.send ''
 
 io = io.listen(server)
