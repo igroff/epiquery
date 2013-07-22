@@ -438,6 +438,7 @@ io.sockets.on 'connection', (socket) ->
     # calling respond at the end of processing.  So we're gonna make
     # a send method that will support that
     resp.respond = (data) -> cb(data)
+    resp.headers = {}
     resp.set = ->
     req.get = ->
     request_handler req, resp
