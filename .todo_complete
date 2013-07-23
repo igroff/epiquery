@@ -1,0 +1,5 @@
+x 04/09/13 09:33:32  install curl
+x 04/09/13 09:33:34  run the bootstrap install.s from ib
+x 04/09/13 09:33:36  move bootstrap stuff into a real script
+x 04/21/13 13:36:04  make start re-entrant so we do not get multiple instances
+x 06/10/13 10:08:04  add headers to rendering context so we can take advantage of the auth proxy provided information
