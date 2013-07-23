@@ -92,7 +92,7 @@ run_dynamic_test dynamic1 'select 1 [column]'
 run_dynamic_test dynamic2 "select 'Hello, '+'{{name}}' [message]" --data-urlencode 'name=ian'
 run_dynamic_test mysql_login_with_header 'select user();' -H 'X-DB-CONNECTION: {"host":"localhost", "user":"epiquery"}'
 run_dynamic_test mysql_login_as_configd 'select user()'
-run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"GLGROUP_LIVE", "password":"GLGROUP_LIVE", "server":"10.211.55.4"}'
+run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"GLGROUP_LIVE", "password":"GLGROUP_LIVE", "server":"10.114.249.102"}'
 run_dynamic_test sql_server_login_as_configd 'select suser_name()' 
 
 run_socket_test socket_mysql_echo.dot mysql_echo.dot '{"howdy": "ian", "val":1}'
