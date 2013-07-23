@@ -24,62 +24,11 @@
     });
     var angApp = angular.module('epiquery-tool', []);
     var vsClient = variablesky.connect("ws://localhost:9999/variablesky");
-    vsClient.linkToAngularScope = function(scope, href, modelName){
-        return (new function(){
-          var link = null;
-          vsClient.on('open', function(){
-            link = vsClient.link(href);
-            link.on('link', function(data){
-              scope[modelName] = data;
-              scope.$apply();
-            });
-          });
-          this.save = function(){
-            link.save(scope[modelName]);
-          }
-      });
-    }
-    vsClient.autoSaveLinkToAngularScope = function(scope, href, modelName){
-        return (new function(){
-          var link = null;
-          vsClient.on('open', function(){
-            link = vsClient.link(href);
-            var timeoutHandle = null;
-            var valueFromServer = null;
-            link.on('link', function(data){
-              // if we have a timeout handle we're just gonna blow it
-              // away because our update from the server has precedent
-              if (timeoutHandle){
-                clearTimeout(timeoutHandle);
-              }
-              valueFromServer = data;
-              scope[modelName] = data;
-              scope.$apply();
-            });
-            saveLink = function(newVal, oldVal, scope){
-              // only if it's different do we have work to do
-              if (!(newVal === oldVal) && !(newVal === valueFromServer)){
-                // if we have a timeoutHandle then a save is already
-                // scheduled, so that will catch the change
-                if (timeoutHandle == null){
-                  console.log("saving");
-                  timeoutHandle = setTimeout(
-                    function() {
-                      timeoutHandle = null;
-                      link.save(scope[modelName]);
-                    }, 500);
-                }
-              }
-            }
-            scope.$watch(modelName, saveLink);
-          });
-        });
-    }
 
     function QueryController($scope, $http){
-      var lastTemplateLink  = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/template', 'lastTemplate');
-      var templateText      = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/templateText', 'templateText');
-      var lastRequestData   = vsClient.linkToAngularScope($scope, '/epiquery/sample/mru/requestParams', 'requestData');
+      var lastTemplateLink  = vsClient.link('epiquery.sample.mru.template').toAngular($scope, 'lastTemplate')
+      var templateText  = vsClient.link('epiquery.sample.mru.templateText').toAngular($scope, 'templateText')
+      var lastRequestData  = vsClient.link('epiquery.sample.mru.requestParams').toAngular($scope, 'requestData')
 
       $scope.templateEngines = ['dot', 'mustache'];
       $scope.selectedEngine = $scope.templateEngines[1];
