@@ -1,3 +1,2 @@
 change sha load so it is picked up on forever restart of the service
-change the template update so that it is handled by cron
 change the __template handling so it is not synchronous as we will need this for an interim asiapac impl of node cmp
