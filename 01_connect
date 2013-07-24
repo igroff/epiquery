@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+glgssh 10.20.41.239
