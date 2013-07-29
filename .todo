@@ -1,2 +1,3 @@
 change sha load so it is picked up on forever restart of the service
 change the __template handling so it is not synchronous as we will need this for an interim asiapac impl of node cmp
+switch to handling json stringfy in a streaming manner so we dont blow up memory on large result sets
