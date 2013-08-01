@@ -192,7 +192,8 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   request_complete_deferred  = Q.defer()
 
   conn = new tedious.Connection get_connection_config(req, 'sql')
-  conn.on 'errorMessage', (message) -> log.error JSON.stringify(message)
+  conn.on 'errorMessage', (message) -> 
+    log.error "On request #{req.path} with error #{JSON.stringify(message)}"
   conn.on 'connect', connect_deferred.makeNodeResolver()
   conn.on 'end', () -> connect_end_deferred.resolve()
 
