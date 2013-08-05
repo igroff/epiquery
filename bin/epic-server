@@ -397,8 +397,7 @@ set_cors_headers = (req, resp) ->
   resp.set 'Access-Control-Allow-Origin', req.headers['origin'] or '*'
   resp.set 'Access-Control-Allow-Credentials', 'true'
   resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
-  allowedHeaders = req.headers['access-control-request-headers']
-  resp.set 'Access-Control-Allow-Headers', "authorization, #{allowedHeaders}"
+  resp.set 'Access-Control-Allow-Headers', req.headers['access-control-request-headers'] or '*'
 
 request_helper = (req, resp) ->
   if req.query['callback']
