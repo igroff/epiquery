@@ -109,3 +109,62 @@ Example:
 curl -v -H
 'X-DB-CONNECTION:{"userName":"sa","password":"xxx","server":"10.211.55.3","port":"1433"}'
 http://query.glgroup.com/test/sysobjects
+
+### AJAX calls to EpiQuery
+
+JQuery CORS example
+
+```javascript
+<html>
+    <head>
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script>
+            $(function(){
+                $.support.cors = true; // for IE
+                $.ajax({
+                  type: 'GET',
+                  url: 'https://query.glgroup.com/glg_offices.mustache',
+                  // Note that any content type other than application/x-www-form-urlencoded, multipart/form-data, or text/plain will trigger a CORS pre-flight check (OPTIONS)
+                  contentType: 'application/json',
+                  xhrFields: {
+                    withCredentials: true 
+                  },
+                  success: function(json) {
+                    $('#result').html(json[2].GLG_OFFICE_NAME);
+                  }
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="result"></div>
+    </body>
+</html>
+```
+
+jQuery jsonp example
+
+```javascript
+<html>
+    <head>
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script>
+            $(function(){
+                $.ajax({
+                    type: 'POST',
+                    url: "https://query.glgroup.com/client/getClientContact.mustache",
+                    data: { consultId: 1662266 },               
+                    contentType: "application/json",
+                    dataType: 'jsonp',
+                    success: function(json) {   
+                       $('#result').html(json[0][0].firstName + " " + json[0][0].lastName);
+                    }
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="result"></div>
+    </body>
+</html>
+```
