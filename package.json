@@ -4,6 +4,7 @@
   "description": "run templated queries from the http's",
   "main": "./bin/epic-server",
   "dependencies": {
+    "JSONStream": "0.6.4",
     "socket.io": "0.9.13",
     "coffee-script": "1.6.2",
     "express": "3.1.0",

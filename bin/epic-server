@@ -13,6 +13,7 @@ mysql       = require 'mysql'
 hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
+JSONStream  = require 'JSONStream'
 
 
 config =
@@ -183,7 +184,7 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
-exec_sql_query = (req, template_name, template_context, callback) ->
+exec_sql_query = (req, response_stream, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
   connect_deferred           = Q.defer()
@@ -216,7 +217,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       request_complete_deferred.promise.finally () -> conn.close()
       request_complete_deferred.promise.then () ->
         if row_data isnt null
-          result_sets.push(row_data)
+          response_stream.write(row_data)
         log.event "request-completed #{arguments[0]}, #{arguments[1]}"
       # <for debugging>
       request.on 'done', () -> a=arguments; log.event("done #{a[0]}, #{a[1]}, #{a[2]}")
@@ -232,11 +233,15 @@ exec_sql_query = (req, template_name, template_context, callback) ->
         # after that we'll either have empty arrays or some data to
         # push onto our result sets
         if row_data isnt null
-          result_sets.push(row_data)
+          response_stream.write(row_data)
+          response_stream.close_array()
+        response_stream.open_array()
         row_data = []
       # collecting our results, yes .4 of tedious allows this to be collected
       # on the request callback, this just didn't get converted for the new version
-      request.on 'row', (columns) -> log.event "row" ; row_data.push(columns)
+      request.on 'row', (columns) ->
+        log.event "row" 
+        response_stream.write(columns)
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
@@ -354,7 +359,7 @@ request_handler = (req, resp) ->
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-      exec_sql_query req, template_path, context, (error, rows) ->
+      exec_sql_query req, response_helper(resp) template_path, context, (error, rows) ->
         if error
           resp.respond create_error_response(error, resp)
         else
@@ -406,6 +411,24 @@ request_helper = (req, resp) ->
   else
     resp.respond = resp.send
   request_handler req, resp
+
+response_helper = (resp) ->
+  json_stream = JSONStream.stringify('','\n,\n', '');
+  resp.write "["
+  have_previous_array = false
+  close_array = ->
+    resp.write "]"
+    have_previous_array = true
+  open_array  = ->
+    if have_previous_array
+      resp.write ","
+    resp.write "["
+  write = (write_this) ->
+    json_stream.write(write_this)   
+  end = ->
+    json_stream.end()
+    resp.write "]"
+
 
 app = express()
 server = http.createServer app
