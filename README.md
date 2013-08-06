@@ -114,7 +114,7 @@ http://query.glgroup.com/test/sysobjects
 
 JQuery CORS example
 
-```javascript
+```html
 <html>
     <head>
         <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
@@ -142,9 +142,38 @@ JQuery CORS example
 </html>
 ```
 
+JQuery CORS POST example
+```html
+<html>
+    <head>
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script>
+            $(function(){
+                $.support.cors = true; // for IE
+                $.ajax({
+                  type: 'POST',
+                  url: "https://query.glgroup.com/client/getClientContact.mustache",                  
+                  dataType: 'json',
+                  data: { consultId: 1662266 },               
+                  xhrFields: {
+                    withCredentials: true 
+                  },
+                  success: function(json) {
+                    $('#result').html(json[0][0].firstName + " " + json[0][0].lastName);
+                  }
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="result"></div>
+    </body>
+</html>
+```
+
 jQuery jsonp example
 
-```javascript
+```html
 <html>
     <head>
         <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
