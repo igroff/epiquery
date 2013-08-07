@@ -418,10 +418,8 @@ class ResponseHelper
     @writeResultSetBegin()
   begin_result_set: (columnNames=null, others...)=>
     metadata = null
-    if columnNames
-      metadata = columnNames: columnNames
-    for i in others
-      metadata = _.extend(metadata || {}, i)
+    metadata = columnNames: columnNames if columnNames
+    _.each others, (other) -> _.extend(metadata || {}, other)
     log.debug "begin_result_set()"
     if @already_have_result_set
       @resp.write ","

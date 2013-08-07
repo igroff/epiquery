@@ -56,6 +56,26 @@ during rendering as key value pairs.  It is also possible to provide
 JSON data as the body of the request and that will be made available to
 the template during rendering as well.
 
+### Interface
+
+Response:
+  { results:[], metadata:{} }
+
+  Where results is an array of result sets.  A result set is as follows:
+  { metadata:{}, rows:[{}] }
+
+So a complete response looks something like this, where the presence of
+any given metadata object is optional
+
+  {
+    results:[
+      {metadata:{}, rows[{}]},
+      {metadata:{}, rows[{}]}
+    ],
+    metadata:{}
+  }
+   
+
 ### Querying
 
 #### MySQL
