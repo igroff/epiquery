@@ -227,17 +227,15 @@ exec_sql_query = (req, response_helper, template_name, template_context, callbac
 
       to_row_data = (row_data) ->
         o = {}
-        _.each row_data, (column, key, list) ->
-            log.debug "row_data: #{JSON.stringify row_data}"
-            o[column.metadata.colName] = column.value
+        _.each row_data, (column, key, list) -> o[column.metadata.colName] = column.value
         return o
 
       # we use this event to split up multipe result sets as each result set
       # is preceeded by a columnMetadata event
-      request.on 'columnMetadata', () ->
+      request.on 'columnMetadata', (columns) ->
         response_helper.end_result_set()
         response_helper.begin_result_sets()
-        response_helper.begin_result_set() 
+        response_helper.begin_result_set(_.map(columns, (column, key, list) -> column.colName)) 
         log.debug "here"
       # collecting our results, yes .4 of tedious allows this to be collected
       # on the request callback, this just didn't get converted for the new version
@@ -414,11 +412,16 @@ class ResponseHelper
   write_template: (name_or_content) =>
     @resp.write "\"template\": #{JSON.stringify(name_or_content)},"
   write_input: (input)=>
-    "input: #{JSON.stringify(input)},"
+    @resp.write "\"input\": #{JSON.stringify(input)},"
   begin_result_sets: =>
     log.debug "being result sets()"
     @writeResultSetBegin()
-  begin_result_set: (metadata=null)=>
+  begin_result_set: (columnNames=null, others...)=>
+    metadata = null
+    if columnNames
+      metadata = columnNames: columnNames
+    for i in others
+      metadata = _.extend(metadata || {}, i)
     log.debug "begin_result_set()"
     if @already_have_result_set
       @resp.write ","
