@@ -8,7 +8,6 @@
   <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
   <script src="/js/lodash.min.js" type="text/javascript"></script>
-  <script src="http://localhost:9999/variablesky.client"></script>
   <script type="text/javascript">
     _.extend($,{
       parseQueryString: function(str){
@@ -23,75 +22,29 @@
       }
     });
     var angApp = angular.module('epiquery-tool', []);
-    var vsClient = variablesky.connect("ws://localhost:9999/variablesky");
 
     function QueryController($scope, $http){
-      var lastTemplateLink  = vsClient.link('epiquery.sample.mru.template').toAngular($scope, 'lastTemplate')
-      var templateText  = vsClient.link('epiquery.sample.mru.templateText').toAngular($scope, 'templateText')
-      var lastRequestData  = vsClient.link('epiquery.sample.mru.requestParams').toAngular($scope, 'requestData')
-
-      $scope.templateEngines = ['dot', 'mustache'];
-      $scope.selectedEngine = $scope.templateEngines[1];
-      var getEpiUrl = function(templateName){
-        //epiUrl = 'https://passwdsvc:YepRud37@query.glgroup.com/' + $scope.lastTemplate + "?callback=?"
-        if (templateName){
-          return 'http://localhost:9090/' + templateName + '?callback=JSON_CALLBACK';
-        } else {
-          return 'http://localhost:9090';
-        }
-      }
-      var displayResults = function(data){
-          $scope.results = JSON.stringify(data, null, 2);
-          console.log($scope.results);
-      };
-      $scope.doQuery = function(){
-        console.log("doQuery(" + $scope.lastTemplate + ")");
-        $http.jsonp(getEpiUrl($scope.lastTemplate)).
-          success(displayResults).
-          error(
-            function(data, status, headers, config){
-              console.log("Error " + status + " " + data);
-            }
-        );
-        lastTemplateLink.save();
-      }
-      $scope.sendTemplate = function(){
-        console.log("sendTemplate()");
-        console.log(lastTemplateLink == templateText);
-        templateText.save();
-        lastRequestData.save();
-        config = $.parseQueryString($scope.requestData);
-        _.extend(config, {
-          "__template": $scope.templateText,
-          "__template_type": $scope.selectedEngine
-        });
-        console.log(config);
-        $http.post(getEpiUrl(), config).
-          success(displayResults).
-          error(
-            function(data, status, headers, config){
-              console.log("error during sendTemplate()");
-              console.log(data);
-              displayResults(data);
-            }
-          );
-      }
+      $http.jsonp("http://localhost:8000/results1.js?callback=JSON_CALLBACK").
+      success(function(results) { console.log("success"); $scope.response=results; }).
+      error(function(data, status, headers, config) { console.log("error"); console.log(data);});
     }
   </script>
 </head>
 <body>
   <span ng-controller="QueryController">
-    <label for="requestData">Request Data: </label><input size=100 type="text" ng-model="requestData">
-    <p>
-    <label for="lastTemplate">Template: </label><input size=100 type="text" ng-model="lastTemplate" >
-    <input type="button" value="Run" ng-click="doQuery()"/>
-    <div style="border: 1px solid black;">
-      <label for="templateText"></label><textarea id="templateText" ng-model="templateText"></textarea>
-      <select ng-model="selectedEngine" ng-options="name for name in templateEngines">
-      </select>
-      <input ng-click="sendTemplate()" type="button" value="Run"/>
-    </div>
-    <pre class="prettyprint" ng-bind-html-unsafe="results"></pre>
+    <table ng-repeat="resultSet in response.resultSets">
+      <caption>Elements: {{resultSet.metadata.rowCount}}</caption>
+      <tr>
+        <!-- loop through one row, so we can print the names as the header -->
+        <th ng-repeat="name in resultSet.metadata.columnNames">
+          {{name}}
+        </th>
+      </tr>
+      <tr ng-repeat="column in resultSet.rows">
+        <td>{{column.id}}</td>
+        <td>{{column.name}}</td>
+      </tr>
+    </table>
   </span>
 </body>
 </html>
