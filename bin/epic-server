@@ -414,13 +414,11 @@ class ResponseHelper
   write_input: (input)=>
     @resp.write "\"input\": #{JSON.stringify(input)},"
   begin_result_sets: =>
-    log.debug "being result sets()"
     @writeResultSetBegin()
   begin_result_set: (columnNames=null, others...)=>
     metadata = null
     metadata = columnNames: columnNames if columnNames
     _.each others, (other) -> _.extend(metadata || {}, other)
-    log.debug "begin_result_set()"
     if @already_have_result_set
       @resp.write ","
     @resp.write "{"
@@ -429,10 +427,8 @@ class ResponseHelper
     @result_set_open = true
     @already_have_result_set = true
   end_result_sets: =>
-    log.debug "end_result_setS()"
     @resp.write "]"
   end_result_set: =>
-    log.debug "end_result_set()"
     if @result_set_open
       @resp.write "]}"
       @result_set_open = false
