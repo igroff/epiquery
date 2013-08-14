@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "description": "run templated queries from the http's",
   "main": "./bin/epic-server",
+  "devDependencies" : {
+    "optimist": "0.6.0",
+    "socket.io-client": "0.9.16"
+  },
   "dependencies": {
     "socket.io": "0.9.13",
     "coffee-script": "1.6.2",
