@@ -85,8 +85,8 @@ a convenience the startup of EpiQuery will source a file ~/.epiquery_env
 on start to allow setting of configuration values. 
 
   Running Epiquery Locally
-    - If you want to setup a dev env, copy the etc/environment.dev file to ~/.epiquery_env". 
-    - Run "sh start"
+    If you want to setup a dev env, copy the etc/environment.dev file to ~/.epiquery_env". 
+    Run "sh start"
 
   Below is an example configuration:
 
