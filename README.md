@@ -82,8 +82,13 @@ choose alternates using a request element named __template_type
 ### Environment ( Configuration )
 It is possible to configure EpiQuery by using environment variables, as
 a convenience the startup of EpiQuery will source a file ~/.epiquery_env
-on start to allow setting of configuration values. Below is an example
-configuration:
+on start to allow setting of configuration values. 
+
+  * Running Epiquery Locally
+    - If you want to setup a dev env, copy the etc/environment.dev file to ~/.epiquery_env". 
+    - Run "sh start"
+
+  * Below is an example configuration:
 
     export EPIQUERY_SQL_SERVER=10.211.55.4
     export EPIQUERY_SQL_PORT=1433
