@@ -5,7 +5,5 @@ ORIGIN_ROOT=${MY_ORIGIN_URL%/${REPO_NAME}}
 TEMPLATES_REPO_NAME=${REPO_NAME/.git/-templates.git}
 TEMPLATE_ORIGIN_URL=${ORIGIN_ROOT}/${TEMPLATES_REPO_NAME}
 echo "TEMPLATE ORIGIN: ${TEMPLATE_ORIGIN_URL}"
-if [ ! -d ./templates ]; then
-  git clone ${TEMPLATE_ORIGIN_URL} templates
-fi
-exec make -e EPIQUERY_HTTP_PORT=$1 start_managed
+git clone ${TEMPLATE_ORIGIN_URL} templates
+npm install .
