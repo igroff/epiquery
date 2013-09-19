@@ -4,7 +4,7 @@ source ${DIR}/setup-environment
 
 # if we don't already have our template updater running, we
 # start it
-${PKG_BIN}/forever list | grep `pwd` |  grep update_or_clone_repo > /dev/null 2>&1
+${PKG_BIN}/forever list | grep `pwd` |  grep epic-run_process_at_interval > /dev/null 2>&1
 if [ $? != 0 ]; then
   ${DIR}/update_templates
 fi
