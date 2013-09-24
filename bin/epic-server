@@ -38,6 +38,20 @@ config =
     user:     process.env.EPIQUERY_MYSQL_RO_USER
     password: process.env.EPIQUERY_MYSQL_RO_PASSWORD
     multipleStatements: true
+  mdx:
+    userName: process.env.EPIQUERY_MDX_USER
+    password: process.env.EPIQUERY_MDX_PASSWORD
+    server:   process.env.EPIQUERY_MDX_SERVER
+    options:
+      port:   process.env.EPIQUERY_MDX_PORT
+  mds_ro:
+    userName: process.env.EPIQUERY_MDX_RO_USER
+    password: process.env.EPIQUERY_MDX_RO_PASSWORD
+    server:   process.env.EPIQUERY_MDX_SERVER
+    options:
+      port:   process.env.EPIQUERY_MDX_PORT
+
+
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
 
