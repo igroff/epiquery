@@ -2,11 +2,18 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/setup-environment
 
-# if we don't already have our template updater running, we
-# start it
-${PKG_BIN}/forever list | grep `pwd` |  grep epic-run_process_at_interval > /dev/null 2>&1
-if [ $? != 0 ]; then
-  ${DIR}/update_templates
+
+if [ "$1" != "managed" ]; then
+  # when we're running under a 'managed' environment something other than 
+  # ourselves (forever) is managing the lifecycle of things so we'll leave
+  # it up to that mechanism to handle template updates
+  
+  # if we don't already have our template updater running, we
+  # start it
+  ${PKG_BIN}/forever list | grep `pwd` |  grep epic-run_process_at_interval > /dev/null 2>&1
+  if [ $? != 0 ]; then
+    ${DIR}/update_templates
+  fi
 fi
 
 if [ "$1" == "profile" ]; then
