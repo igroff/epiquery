@@ -11,4 +11,3 @@ env:
         load_balancer_monitor: /diagnostic
         stew: false
         clone_directory: epiquery
-        bootstrap_shell_command: cd ~/epiquery/storm ; ./setup.sh ; cd ~/epiquery ; make start
