@@ -13,6 +13,7 @@ mysql       = require 'mysql'
 hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
+xmla        = require 'xmla4js'
 
 
 config =
@@ -38,6 +39,11 @@ config =
     user:     process.env.EPIQUERY_MYSQL_RO_USER
     password: process.env.EPIQUERY_MYSQL_RO_PASSWORD
     multipleStatements: true
+  mdx:
+    userName: process.env.EPIQUERY_MDX_USER
+    password: process.env.EPIQUERY_MDX_PASSWORD
+    server:   process.env.EPIQUERY_MDX_SERVER
+    url:      process.env.EPIQUERY_MDX_URL	
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
 
@@ -154,6 +160,10 @@ prefix_handlers =
     get:  (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
     post: (sql) -> ""
     head: (sql) -> "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n"
+  mdx:
+    get:  (sql) -> ""
+    post: (sql) -> ""
+    head: (sql) -> ""	
 
 suffix_handlers =
   mssql:
@@ -164,6 +174,10 @@ suffix_handlers =
     get:  (sql) -> ""
     post: (sql) -> ""
     head: (sql) -> ""
+  mdx:
+    get:  (sql) -> ""
+    post: (sql) -> ""
+    head: (sql) -> ""	
 
 decorate_mssql_script = (request_type, sql) ->
   t = request_type.toLowerCase()
@@ -313,6 +327,73 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log_promise 'request', request_deferred.promise
   ).done()
 
+exec_mdx_query = (req, template_name, template_context, callback) ->
+
+  catalog = 'GLG_DW_PROJECTS'
+  #format is a analysis installation our installation is multidimensional so hardcoding for now
+  format = xmla.Xmla.PROP_FORMAT_MULTIDIMENSIONAL
+  mdxserver = config.mdx.server
+  mdxurl = config.mdx.url
+
+  header = req.get "MDX_CATALOG"
+  if header
+    catalog = header
+  header = req.get "MDX_SERVER"
+  if header
+    mdxserver = header
+  header = req.get "MDX_URL"
+  if header
+    mdxurl = header
+
+  Q.nfcall(fs.readFile,
+     path.join(path.normalize(config.template_directory), template_name),
+     {encoding:'utf8'}
+  ).then( (template) ->
+    Q.try( () ->
+      renderer = get_renderer_for_template template_name
+      log.debug "raw template: #{template}"	  
+      rendered_template = renderer template.toString(), template_context
+      log.debug "rendered template(type #{typeof rendered})\n #{rendered}"	  
+      xmlaRequest =
+        async: true
+        url: mdxurl
+        success: (xmla, xmlaRequest, xmlaResponse) ->
+          Q.try(() ->
+            if(!xmlaResponse)
+               log.error('MDX query succeeded '+ template_name + ' but response from xmlarequest is undefined')
+               callback 'ERROR:  MDX query succeeded '+ template_name + ' but response from xmlarequest is undefined', null
+            else
+               obj =  xmlaResponse.fetchAsObject()
+               if(obj == false)
+                 output = JSON.stringify({})
+               else
+                 output = JSON.stringify(obj)
+               callback null, output
+          ).catch( (error) ->
+            log.error('MDX query succeeded error parsing response as object (xmlaResponse.fetchAsObject())' + error)
+            log.error('MDX response=' + xmlaResponse)
+            callback 'MDX query succeeded.  error parsing response (fetch as object to json).  ' + error, null
+          )
+        error: (xmla, xmlaRequest, exception) ->
+          log.error('MDX query failed to execute, exception=' + exception.message)
+          callback exception.message, null
+
+      xmlaRequest.properties = {};
+      xmlaRequest.properties[xmla.Xmla.PROP_CATALOG] = catalog
+      xmlaRequest.properties[xmla.Xmla.PROP_FORMAT] = format
+      xmlaRequest.properties[xmla.Xmla.PROP_DATASOURCEINFO] = mdxserver
+      xmlaRequest.method = xmla.Xmla.METHOD_EXECUTE
+      xmlaRequest.statement =  rendered_template
+      x = new xmla.Xmla()
+      x.request(xmlaRequest)
+    ).catch( (error) ->
+      log.error('MDX query call failure, error calling analysis server ' + mdxurl + ' template='+template_name + ', error='+error)
+      callback 'MDX, Error calling analysis server  error='+ error, null)
+  , (error) ->
+    log.error('MDX query failed to load template error=' + error)
+    callback error, null
+  ).done()  
+  
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
@@ -320,6 +401,7 @@ request_handler = (req, resp) ->
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
   set_cors_headers req, resp
   isMySQLRequest = false
+  isMDXRequest = false  
 
   # we allow people to provide any path relative to the templates directory
   # so we'll remove the initial / and keep the rest of the path while conveniently
@@ -328,6 +410,8 @@ request_handler = (req, resp) ->
   log.debug "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
+  else if template_path.indexOf("mdx") isnt -1
+    isMDXRequest = true	
   log.debug "working template path: #{template_path}"
 
 
@@ -351,6 +435,13 @@ request_handler = (req, resp) ->
           resp.respond create_error_response(error, resp)
         else
           resp.respond rows
+    else if isMDXRequest
+      log.debug "processing mdx query"
+      exec_mdx_query req, template_path, context, (error, rows) ->
+        if error
+          resp.respond create_error_response(error, resp)
+        else
+          resp.respond rows			  
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
