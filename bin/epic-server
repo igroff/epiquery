@@ -329,7 +329,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
 
 exec_mdx_query = (req, template_name, template_context, callback) ->
 
-  catalog = 'GLG_DW_PROJECTS'
+  catalog = 'GLG_DW_TABLEAU'
   #format is a analysis installation our installation is multidimensional so hardcoding for now
   format = xmla.Xmla.PROP_FORMAT_MULTIDIMENSIONAL
   mdxserver = config.mdx.server
