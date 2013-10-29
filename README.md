@@ -59,7 +59,7 @@ the template during rendering as well.
 ### Querying
 
 #### MySQL
-In order to query against the configued MySQL server the path to
+In order to query against the configured MySQL server the path to
 the template needs to contain the string 'mysql' (no quotes).  This
 string can occur anywhere in the path to the template, including the
 file name of the template.
@@ -68,6 +68,12 @@ file name of the template.
 MS SQL is the default destination against which queries will be run, so
 a path that doesn't contain mysql will end up in a query being executed
 against the configured MS SQL server.
+
+#### MS SQL Server Analysis Service (SSAS)
+In order to query against the configured data cube (multi-dimensional database) the path to
+the template needs to contain the string 'mdx' (no quotes).  This
+string can occur anywhere in the path to the template, including the
+file name of the template.
 
 #### Development
 It's possible to execute an arbitrary query provided on the request.  If the
@@ -96,11 +102,19 @@ on start to allow setting of configuration values.
     export EPIQUERY_SQL_PASSWORD=GLGROUP_LIVE
     export EPIQUERY_SQL_RO_USER=GLGROUP_LIVE
     export EPIQUERY_SQL_RO_PASSWORD=GLGROUP_LIVE
+
     export EPIQUERY_MYSQL_SERVER=localhost
     export EPIQUERY_MYSQL_USER=root
     export EPIQUERY_MYSQL_PASSWORD=
     export EPIQUERY_MYSQL_RO_USER=epiquery_ro
     export EPIQUERY_MYSQL_RO_PASSWORD=
+
+	export EPIQUERY_MDX_SERVER=glgdb503.glgroup.com
+	export EPIQUERY_MDX_USER=
+	export EPIQUERY_MDX_PASSWORD=
+	export EPIQUERY_MDX_CATALOG=GLG_DW_PROJECTS
+	export EPIQUERY_MDX_URL=http://glgdb503.glgroup.com/olapanon/msmdpump.dll
+
     export EPIQUERY_HTTP_PORT=9090
 
 ### DB Override
@@ -145,7 +159,7 @@ JQuery CORS example
         <div id="result"></div>
     </body>
 </html>
-```
+```html
 
 JQuery CORS POST example
 ```html
@@ -202,3 +216,251 @@ jQuery jsonp example
     </body>
 </html>
 ```
+
+***
+### MDX Queries
+
+N.B. EpiQuery has only been test against Microsoft SSAS data cubes. We have not tested against any other XMLA providers. Similarly, we have not tested queries with more than 2 axes (columns and rows).
+
+######JQuery example
+
+	<html>
+	    <head>
+	        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+			<script>
+				var j$ = jQuery.noConflict();
+			
+				function exec_mdx_query() {
+					j$.support.cors = true; // for IE
+					j$.ajax({
+						type: 'GET',
+						url: "https://query.glgroup.com/mdx/my_mdx_query.mustache",
+						dataType: 'json',
+						data: { my_mdx_query_param: 123 },
+						crossDomain: true,
+						xhrFields: {
+							withCredentials: true
+						},
+						success: function(json) {
+							$('#result').html(json);
+						},
+						error: function (xhr, ajaxOptions, thrownError) {
+							$('#result').html(xhr.responseJSON.message);
+						}					
+					});
+				}
+			</script>
+	    </head>
+	    <body>
+	        <div id="result"></div>
+	    </body>
+	</html>
+
+######OLAP Database Override
+
+You can override the configured database by setting the following headers in your request:
+
+- MDX_SERVER (*specifies the data source*)
+- MDX_URL (*specifies the XMLA web service*)
+- MDX_CATALOG (*specifies the particular data cube within the data source*)
+
+Note, if you are overriding the default OLAP data source, then both MDX_SERVER and MDX_URL are required to connect to a particular OLAP datasource. 
+
+For example, 
+
+	<script>
+		var j$ = jQuery.noConflict();
+	
+		function exec_mdx_query() {
+			j$.support.cors = true; // for IE
+			j$.ajax({
+				type: 'GET',
+				beforeSend: function (request)
+				{
+				  request.setRequestHeader("MDX_CATALOG", 'MYDBCAT');
+				  request.setRequestHeader("MDX_URL", 'http://MYDB.com/');
+				  request.setRequestHeader("MDX_SERVER", 'MYDBSERVER');
+				},
+				url: "https://query.glgroup.com/mdx/my_mdx_query.mustache",
+				dataType: 'json',
+				data: { my_mdx_query_param: 123 },
+				crossDomain: true,
+				xhrFields: {
+					withCredentials: true
+				},
+				success: function(json) {
+					$('#result').html(json);
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					$('#result').html(xhr.responseJSON.message);
+				}					
+			});
+		}
+	</script>
+
+######Results
+
+EpiQuery returns query results as JSON. The JSON has this form:
+
+
+- JSON
+	- Axes
+		- 0
+			- positions
+			- hierarchies
+		- 1
+			- positions
+			- hierarchies
+		- N 
+			- positions
+			- hierarchies 	 
+	- Cells
+		- 0
+		- 1...
+		- M
+	   
+
+For example, consider the following query to list the number of GTCs per contact per month in 2013 for the 3M Canada Company account.
+
+	SELECT 
+	NON EMPTY { 
+			[Date].[Calendar].[Month].ALLMEMBERS 
+		} ON COLUMNS, 
+	 NON EMPTY { 
+			[Client].[Client].ALLMEMBERS * [Contact].[Contact].ALLMEMBERS * [MEASURES].[GTCs] 
+		} ON ROWS 
+	 FROM ( 
+		SELECT ( { [Date].[Calendar].[Year].&[2013-01-01T00:00:00] } ) ON COLUMNS 
+		FROM ( 
+			SELECT ( { [Client].[All].[3M Canada Company] } ) ON COLUMNS 
+			FROM [GLG Projects])) 
+			WHERE ( [Date].[Month].CurrentMember )
+
+If you run this in SQL Server Managerment Studio it would format the output like this:
+
+```
+<table>
+<tr>
+<tr><td></td><td></td><td></td><td>March 2013</td><td>April 2013</td><td>May 2013</td><td>June 2013</td></tr>
+<tr><td>3M Canada Company</td><td>Cheryl Haug</td><td>GTCs</td><td>(null)</td><td>2</td><td>(null)</td><td>(null)</td> </tr>
+<tr><td>3M Canada Company</td><td>Christian Blyth</td><td>GTCs</td><td>8</td><td>(null)</td><td>(null)</td><td>(null)</td> </tr>
+<tr><td>3M Canada Company</td><td>Deb LaBelle</td><td>GTCs</td><td>(null)</td><td>(null)</td><td>(null)</td><td>1</td></tr>
+<tr><td>3M Canada Company</td><td>Jonathan Jones</td><td>GTCs</td><td>(null)</td><td>1</td><td>(null)</td><td>(null)</td> </tr>
+<tr><td>3M Canada Company</td><td>Laurie Sproul</td><td>GTCs</td><td>5</td><td>(null)</td><td>2</td><td>(null)</td> </tr>
+<tr><td>3M Canada Company</td><td>Marcelo Mellicovsky</td><td>GTCs</td><td>(null)</td><td>2</td><td>(null)</td><td>(null)</td> </tr>
+<tr><td>3M Canada Company</td><td>Melissa Kenyon</td><td>GTCs</td><td>8</td><td>(null)</td><td>(null)</td><td>(null)</td> </tr>
+</table>
+```
+
+#########Column Headings
+
+In the JSON output, column headings are listed in the Axis[0] `positions` collection. The first 2 column headings are shown below: 
+
+	"axes": [
+	    {
+	      "positions": [
+	        {
+	          "[Date].[Calendar]": {
+	            "index": 0,
+	            "hierarchy": "[Date].[Calendar]",
+	            "UName": "[Date].[Calendar].[Month].&[2013-03-01T00:00:00]",
+	            "Caption": "March 2013",
+	            "LName": "[Date].[Calendar].[Month]",
+	            "LNum": 2,
+	            "DisplayInfo": 31
+	          }
+	        },
+	        {
+	          "[Date].[Calendar]": {
+	            "index": 0,
+	            "hierarchy": "[Date].[Calendar]",
+	            "UName": "[Date].[Calendar].[Month].&[2013-04-01T00:00:00]",
+	            "Caption": "April 2013",
+	            "LName": "[Date].[Calendar].[Month]",
+	            "LNum": 2,
+	            "DisplayInfo": 131102
+	          }
+	        },
+			ETC.
+
+#########Row Headings
+
+Row headings are listed in the Axis[1] `positions` collection. The first row and part of the next are shown below:
+
+	,
+	{
+      "positions": [
+        {
+          "[Client]": {
+            "index": 0,
+            "hierarchy": "[Client]",
+            "UName": "[Client].[All].[3M Canada Company]",
+            "Caption": "3M Canada Company",
+            "LName": "[Client].[Client]",
+            "LNum": 1,
+            "DisplayInfo": 0
+          },
+          "[Contact]": {
+            "index": 1,
+            "hierarchy": "[Contact]",
+            "UName": "[Contact].[All].[Cheryl Haug]",
+            "Caption": "Cheryl Haug",
+            "LName": "[Contact].[Contact]",
+            "LNum": 1,
+            "DisplayInfo": 0
+          },
+          "[Measures]": {
+            "index": 2,
+            "hierarchy": "[Measures]",
+            "UName": "[Measures].[GTCs]",
+            "Caption": "GTCs",
+            "LName": "[Measures].[MeasuresLevel]",
+            "LNum": 0,
+            "DisplayInfo": 0
+          }
+        },
+        {
+          "[Client]": {
+            "index": 0,
+            "hierarchy": "[Client]",
+            "UName": "[Client].[All].[3M Canada Company]",
+            "Caption": "3M Canada Company",
+            "LName": "[Client].[Client]",
+            "LNum": 1,
+            "DisplayInfo": 131072
+          },
+         },
+         ETC.
+
+The values for the individual cells--the intersections of the columns and rows--are in the `Cells` array. They run left to right, top to bottom. Here is the first row of cells and the first cell of the second row:
+
+	"cells": [
+    {
+      "Value": null,
+      "FmtValue": null,
+      "FormatString": null,
+      "ordinal": 0
+    },
+    {
+      "Value": 2,
+      "FmtValue": "2",
+      "ordinal": 1
+    },
+    {
+      "Value": null,
+      "FmtValue": null,
+      "FormatString": null,
+      "ordinal": 2
+    },
+    {
+      "Value": null,
+      "FmtValue": null,
+      "FormatString": null,
+      "ordinal": 3
+    },
+    {
+      "Value": 8,
+      "FmtValue": "8",
+      "ordinal": 4
+    },
+    ETC.
