@@ -1,5 +1,5 @@
 foo && foo([
   {
-    "everything": " name=pants  callback=foo  user-agent=curl/7.24.0 (x86_64-apple-darwin12.0) libcurl/7.24.0 OpenSSL/0.9.8x zlib/1.2.5  host=localhost:9090  accept=*/* "
+    "everything": " name=pants  callback=foo  user-agent=curl/7.24.0 (x86_64-apple-darwin12.0) libcurl/7.24.0 OpenSSL/0.9.8y zlib/1.2.5  host=localhost:9090  accept=*/* "
   }
 ]);
