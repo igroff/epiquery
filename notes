@@ -1,0 +1,31 @@
+## Configuration 
+
+Config, JSON object accessible via environment variable EPIQUERY_CONFIG as either the object itself (JSON) or
+a file containing JSON.
+
+### Connection Config
+  In order to support backwards compatablility, there is the concept of a default connection.  If 
+a request indicates no named connection, the default connection will be used.  Connections must be
+explicitly marked as default in their configuration.  If multiple connections are marked as default
+the first one found will be used (order is not guaranteed in configuration, so this is
+non-deterministic behavior).  In the case of no connections being marked as default inbound requests
+without a connection indicator will not be mapped to any connection and will thus fail.
+
+### Sample Configuration
+    {
+      "connections":{
+        "sql_conn": {"user":"", "password":"", "host":"", "port":"", "driver":"mssql" },
+        "sql_conn_2": {"user":"", "password":"", "host":"", "port":"", "driver":"mssql" }
+        "mysql_conn": {"user":"", "password":"", "host":"", "port":"", "driver":"mysql"}
+      }
+      "templateDir":"",
+      "httpPort":8080
+    }
+ 
+Request URL Format
+http://<server>/<template path>/<connection_name>`
+
+Sample Requests:
+
+curl http://localhost:8080/test/servername/sql_conn_2
+
