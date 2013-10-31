@@ -4,49 +4,50 @@ Config, JSON object accessible via environment variable EPIQUERY_CONFIG as eithe
 a file containing JSON.
 
 ### Connection Config
-  In order to support backwards compatability with previous versions of the epiquery API, it is possible to
-provide a connection selector function.  If the named connection specifies a selector function, it will be invoked
-to determine which connection will be used to handle the request.  The presence of a connection selector function
-superceeds the use of named connection lookup when choosing the connection used to handle the request.
-The logic for determining which connection will be used for a request looks (logically) as follows:
-
-    for each connection
-      if connection.selector?(req)
-        return connection
-    for each connection
-      if connection.isRequestedByName(req)
-        return connection
-    return null
-
-  The connection selector will be passed the node IncomingMessage object associated with the inbound 
-request. The selector should return true if the associated connection should be used to handle the
-inbound request.
-
-    function selector(req) {
-      // determines if we should use the mysql connection to service the provided
-      // request
-      if (req.path.indexOf('mysql') != -1){
-        return true;
-      }
-      return false; 
-    }
+  Named connections are mapped to inbound requests, determining what connection will be used to
+process the rendered query template.  Connection names are indicated by providing the name of the
+desired connection in the inbound request, see below for details.
 
 ### Sample Configuration
     {
       "connections":[
-        {"name":"sql_conn_old",   "config": {"user":"", "password":"", "host":"", "port":"", "driver":"mssql" }, "selector":"selector function source code"},
-        {"name":"sql_conn",   "config": {"user":"", "password":"", "host":"", "port":"", "driver":"mssql" }},
-        {"name":"sql_conn_2", "config": {"user":"", "password":"", "host":"", "port":"", "driver":"mssql" }},
-        {"name":"mysql_conn", "config": {"user":"", "password":"", "host":"", "port":"", "driver":"mysql"}}
+        {"name":"sql__old","driver":"mssql","config": {"user":"", "password":"", "host":"", "port":""}},
+        {"name":"sql_conn","driver":"mssql","config": {"user":"", "password":"", "host":"", "port":""}},
+        {"name":"sql_con2","driver":"mssql","config": {"user":"", "password":"", "host":"", "port":""}},
+        {"name":"mysql","driver":"mysql","config": {"user":"", "password":"", "host":"", "port":""}}
       ],
       "templateDir":"",
       "httpPort":8080
     }
  
-Request URL Format
-http://<server>/<template path>/<connection_name>`
+### Interface
 
-Sample Requests:
+  The systems to which epiquery provides access are generally streaming data sources, and as such
+the only supported interface is websockets.  As a convenience there is a veneer that maps the
+underlying socket protocol into a REST like interface.  The REST interface is backwards compatible
+with an older epiquery interface offering less functionality and being quite a bit less sophisticated
+than the socket interface.
 
-curl http://localhost:8080/test/servername/sql_conn_2
+  New uses of the system should be based on the socket interface and have nothing to do with the REST
+interface.  The REST interface is solely for backwards compatability and is lacking in several areas
+including missing a streaming response, which makes it a poor choice for large data sets as the whole
+response will be buffered before responding. 
+
+#### Messages
+
+##### Query
+  Executes a query using the data provided.
+  {"message":"query", "template":"/path/to/template.mustache", "query_id":"", "data":{}}
+
+##### Row
+  A message containing a single row of data from the execution of a query, associated with a containing result set.
+  {"message":"row", "query_id":"", "columns":{"col_name": "col_value"}}
+
+##### Query Begin
+  Indicates that a particular query request has begun processing.
+  {"message":"query_begin"}
+
+##### Query Complete
+  Indicates that a particular query has completed, all of it's data having been returned.
+  {"message":"query_complete"}
 
