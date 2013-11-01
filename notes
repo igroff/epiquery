@@ -4,13 +4,12 @@
   Specifically we use this to refer to the resulting string as it is sent to the target server.  A Query
   as we've defined here may well contain multiple queries against the target data source resulting in 
   multiple result sets.
-
 * Active Query - A Query is considered to be active while it is being processed by epiquery.  This 
   time is specifically that which is bounded by Query Begin and Query Complete messages.
 
 ## Supported data sources
 * Microsoft SQL Server - as supported by the tedious npm package (although it has been patched
-  for a date issue). Driver name: mssql
+for a date issue). Driver name: mssql
 * MySQL - Driver name: mysql
 
 ## Configuration 
@@ -18,7 +17,7 @@
 Config, JSON object accessible via environment variable EPIQUERY_CONFIG as either the object itself (JSON) or
 a file containing JSON.
 
-### Configuration Structure
+#### Configuration Structure
 Provides the configuration information for an epiquery instance, a skeleton with all options is listed
 below:
 
@@ -44,7 +43,7 @@ configuration data that is specific to the driver.
       "config":{}
     }
 
-### Sample Configuration
+#### Sample Configuration
     {
       "connections":[
         {"name":"sql__old","driver":"mssql","config": {"user":"", "password":"", "host":"", "port":""}},
@@ -56,23 +55,16 @@ configuration data that is specific to the driver.
       "httpPort":8080
     }
  
-### Interface
+## Interface
 
   The systems to which epiquery provides access are generally streaming data sources.
 The only supported interface is websockets as it allows for simple event based interface more
 compatable with streaming data
 
 ##### Compatability
-    As a convenience there is a veneer that maps the underlying socket protocol into a
-    REST like interface.  The REST interface is backwards compatible with an older epiquery
-    interface offering less functionality and being quite a bit less sophisticated
-    than the socket interface.
+    As a convenience there is a veneer that maps the underlying socket protocol into a REST like interface. The REST interface is backwards compatible with an older epiquery interface offering less functionality and being quite a bit less sophisticated than the socket interface.  
 
-    New uses of the system should be based on the socket interface and have nothing to do with the REST
-    interface.  The REST interface is solely for backwards compatability and is lacking in several areas
-    including missing a streaming response, which makes it a poor choice for large data sets as the whole
-    response will be buffered before responding. 
-
+    New uses of the system should be based on the socket interface and have nothing to do with the REST interface. The REST interface is solely for backwards compatability and is lacking in several areas including missing a streaming response, which makes it a poor choice for large data sets as the whole response will be buffered before responding.
 #### Messages
 
 ##### Query
@@ -82,12 +74,11 @@ Executes a Query using the data provided.
 
 * template - the path to the template desired.  This is relative to the root of the templates
   directory.
-* queryId - A unique identifier used to refer to the query throughout it's Active period.  It 
-  will be included with all messages generated during it's processing.
+* queryId - A unique identifier used to refer to the query throughout it's Active period. It will be included with all messages generated during it's processing. It is the caller's responsability to generate a unique id for each query requested.
 * data - An object that will be used as the template context when rendering.
 
 ##### Row
-  A message containing a single row of data from the execution of a query, associated with a containing result set.
+A message containing a single row of data from the execution of a query, associated with a containing result set.
 
     {"message":"row", "queryId":"", "columns":{"col_name": "col_value"}}
 
@@ -102,21 +93,21 @@ emission of a 'ResultSet Begin' message.
     {"message":"resultset_begin", "queryId":""}
 
 ##### ResultSet End
-  For each result set that is started, there will be a corresponding end message sent.
+For each result set that is started, there will be a corresponding end message sent.
 
     {"message":"resultset_end", "queryId":""}
 
 ##### Query Begin
-  Indicates that a particular query request has begun processing.  While a Query is active
-  other messages related to that query (having the same queryId) can and generally will
-  be raised.
+Indicates that a particular query request has begun processing.  While a Query is active
+other messages related to that query (having the same queryId) can and generally will
+be raised.
 
     {"message":"query_begin", "queryId":""}
 
 ##### Query Complete
-  Indicates that a particular query has completed, all of it's data having been returned.  Indicates the 
-  final stage of an Active Query, once this event is raised the associated Query is no longer considered
-  active.
+Indicates that a particular query has completed, all of it's data having been returned.  Indicates the 
+final stage of an Active Query, once this event is raised the associated Query is no longer considered
+active.
 
     {"message":"query_complete", "queryId":"", "rowCount":3}
 
