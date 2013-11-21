@@ -300,7 +300,7 @@ For example,
 
 ######Results
 
-EpiQuery returns query results as JSON. The JSON has this form:
+EpiQuery returns query results as JSON.  The JSON has this form:
 
 
 - JSON
