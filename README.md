@@ -126,7 +126,7 @@ the epiquery server.
 Example:
 
 curl -v -H
-'X-DB-CONNECTION:{"userName":"sa","password":"xxx","server":"10.211.55.3","port":"1433"}'
+'X-DB-CONNECTION:{"userName":"sa","password":"xxx","server":"10.211.55.3","options":{"port":"1433"}}'
 http://query.glgroup.com/test/sysobjects
 
 ### AJAX calls to EpiQuery
