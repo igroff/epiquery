@@ -43,7 +43,14 @@ config =
     userName: process.env.EPIQUERY_MDX_USER
     password: process.env.EPIQUERY_MDX_PASSWORD
     server:   process.env.EPIQUERY_MDX_SERVER
-    url:      process.env.EPIQUERY_MDX_URL	
+    url:      process.env.EPIQUERY_MDX_URL
+    catalog:  process.env.EPIQUERY_MDX_CATALOG
+  mdx_ro:
+    userName: process.env.EPIQUERY_MDX_USER
+    password: process.env.EPIQUERY_MDX_PASSWORD
+    server:   process.env.EPIQUERY_MDX_SERVER
+    url:      process.env.EPIQUERY_MDX_URL
+    catalog:  process.env.EPIQUERY_MDX_CATALOG	
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
 
@@ -328,22 +335,9 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
   ).done()
 
 exec_mdx_query = (req, template_name, template_context, callback) ->
-
-  catalog = 'GLG_DW_TABLEAU'
+  conf = get_connection_config(req, 'mdx')
   #format is a analysis installation our installation is multidimensional so hardcoding for now
   format = xmla.Xmla.PROP_FORMAT_MULTIDIMENSIONAL
-  mdxserver = config.mdx.server
-  mdxurl = config.mdx.url
-
-  header = req.get "MDX_CATALOG"
-  if header
-    catalog = header
-  header = req.get "MDX_SERVER"
-  if header
-    mdxserver = header
-  header = req.get "MDX_URL"
-  if header
-    mdxurl = header
 
   Q.nfcall(fs.readFile,
      path.join(path.normalize(config.template_directory), template_name),
@@ -356,7 +350,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
       log.info "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
       xmlaRequest =
         async: true
-        url: mdxurl
+        url: conf.url
         success: (xmla, xmlaRequest, xmlaResponse) ->
           Q.try(() ->
             if(!xmlaResponse)
@@ -379,15 +373,15 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
           callback exception.message, null
 
       xmlaRequest.properties = {};
-      xmlaRequest.properties[xmla.Xmla.PROP_CATALOG] = catalog
+      xmlaRequest.properties[xmla.Xmla.PROP_CATALOG] = conf.catalog
       xmlaRequest.properties[xmla.Xmla.PROP_FORMAT] = format
-      xmlaRequest.properties[xmla.Xmla.PROP_DATASOURCEINFO] = mdxserver
+      xmlaRequest.properties[xmla.Xmla.PROP_DATASOURCEINFO] = conf.server
       xmlaRequest.method = xmla.Xmla.METHOD_EXECUTE
       xmlaRequest.statement =  rendered_template
       x = new xmla.Xmla()
       x.request(xmlaRequest)
     ).catch( (error) ->
-      log.error('MDX query call failure, error calling analysis server ' + mdxurl + ' template='+template_name + ', error='+error)
+      log.error('MDX query call failure, error calling analysis server ' + conf.url + ' template='+template_name + ', error='+error)
       callback 'MDX, Error calling analysis server  error='+ error, null)
   , (error) ->
     log.error('MDX query failed to load template error=' + error)
