@@ -38,6 +38,10 @@
   "engine": {
     "node": "0.10.3"
   },
+  "scripts": {
+    "postinstall": "./ar-install",
+    "start": "./ar-start"
+  },
   "repository": {
     "type": "git",
     "url":  "git://github.com/intimonkey/epic-query.git"
