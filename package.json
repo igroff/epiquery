@@ -40,7 +40,7 @@
   },
   "scripts": {
     "pre-install": "./pre-install",
-    "start": "./ar-start"
+    "start": "./ar-start ${PORT}"
   },
   "repository": {
     "type": "git",
