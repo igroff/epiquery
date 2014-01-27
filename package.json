@@ -39,7 +39,7 @@
     "node": "0.10.3"
   },
   "scripts": {
-    "postinstall": "./ar-install",
+    "pre-install": "./pre-install",
     "start": "./ar-start"
   },
   "repository": {
