@@ -39,8 +39,7 @@
     "node": "0.10.3"
   },
   "scripts": {
-    "pre-install": "./pre-install",
-    "start": "./ar-start ${PORT}"
+    "start": "./pre-install && ./ar-start ${PORT}"
   },
   "repository": {
     "type": "git",
