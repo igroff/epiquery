@@ -304,6 +304,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
   conn = mysql.createConnection get_connection_config(req, 'mysql')
   conn.connect connect_deferred.makeNodeResolver()
   conn.on 'error', (error) -> callback error, null
+  rendered_template = ""
 
   Q.all([template_loaded, connect_deferred.promise]).spread( (template) ->
     renderer = get_renderer_for_template template_name
@@ -313,7 +314,10 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log.debug "template context: #{JSON.stringify(template_context)}"
     log.debug "rendered template\n #{rendered_template}"
     conn.query rendered_template, request_deferred.makeNodeResolver()
-  ).fail( (error) -> callback error, null
+  ).fail((error) ->
+    log.error "template context: #{JSON.stringify(template_context)}"
+    log.error "rendered template\n #{rendered_template}"
+    callback error, null
   ).finally( () -> conn.end() )
 
   Q.all([
