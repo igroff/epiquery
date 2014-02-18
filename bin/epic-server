@@ -413,14 +413,14 @@ request_handler = (req, resp) ->
   log.debug "working template path: #{template_path}"
 
 
-  create_error_response = (error, resp, template_path) ->
+  create_error_response = (error, resp, template_path, template_context) ->
     resp.statusCode = 500
     result = {status: "error"}
     if typeof(error) is "string"
       result.message = error
     else
       result.message = error.message
-      log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}"
+      log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}\n\nContext:\n  #{JSON.stringify(template_context)}"
     # try and avoid giving too much away in our error message
     result.message = result.message.replace process.cwd(), ""
     result
@@ -430,14 +430,14 @@ request_handler = (req, resp) ->
       log.debug "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
         if error
-          resp.respond create_error_response(error, resp, template_path)
+          resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows
     else if isMDXRequest
       log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
         if error
-          resp.respond create_error_response(error, resp, template_path)
+          resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows			  
     else
@@ -446,7 +446,7 @@ request_handler = (req, resp) ->
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows) ->
         if error
-          resp.respond create_error_response(error, resp, template_path)
+          resp.respond create_error_response(error, resp, template_path, context)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
