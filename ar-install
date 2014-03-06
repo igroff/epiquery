@@ -9,4 +9,4 @@ if [ -d templates ]; then
   rm -rf ./templates
 fi
 git clone ${TEMPLATE_ORIGIN_URL} templates
-npm install --production .
+npm rebuild
