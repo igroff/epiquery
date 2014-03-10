@@ -282,8 +282,9 @@ exec_sql_query = (req, template_name, template_context, callback) ->
     request_complete_deferred.promise
   ]).then(
     () -> callback null, result_sets
-  ).fail(
-    (error) -> callback error, result_sets
+  ).fail( (error) ->
+    log.error "template context: #{JSON.stringify(template_context)}"
+    callback error, result_sets
   ).finally( () ->
       log_promise 'connect', connect_deferred.promise,
       log_promise 'connect_end', connect_end_deferred.promise,
