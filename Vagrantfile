@@ -13,7 +13,7 @@ Vagrant.configure("2") do |config|
 
 
   config.vm.network "forwarded_port", guest: 9000, host: 9001
-  config.vm.network "forwarded_port", guest: 7070, host: 7070
+  config.vm.network "forwarded_port", guest: 7070, host: 7071
 
 
   config.vm.synced_folder "./", "/vagrant/epiquery"
