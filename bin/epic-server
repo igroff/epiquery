@@ -507,6 +507,12 @@ request_helper = (req, resp) ->
 app = express()
 server = http.createServer app
 app.use express.bodyParser()
+app.get 'stats', (req, resp) ->
+  stats=
+    runningQueries: duration.getRunningItems()
+    longestRunningQueryInstance: duration.getLongestDurations
+    durationForLastExecution: duration.getCompletedItems
+  resp.send stats
 app.get '*', request_helper
 app.post '*', request_helper
 app.head '*', (req, resp) ->
