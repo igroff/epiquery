@@ -14,7 +14,8 @@ hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
 xmla        = require 'xmla4js'
-durations   = new require('./utils.coffee').DurationTracker()
+DT          = require('./utils.coffee').DurationTracker
+durations   = new DT()
 
 
 config =
@@ -506,11 +507,11 @@ request_helper = (req, resp) ->
 app = express()
 server = http.createServer app
 app.use express.bodyParser()
-app.get 'stats', (req, resp) ->
+app.get '/stats', (req, resp, next) ->
   stats=
-    runningQueries: duration.getRunningItems()
-    longestRunningQueryInstance: duration.getLongestDurations
-    durationForLastExecution: duration.getCompletedItems
+    runningQueries: durations.getRunningItems()
+    longestRunningQueryInstance: durations.getLongestDurations()
+    durationForLastExecution: durations.getCompletedItems()
   resp.send stats
 app.get '*', request_helper
 app.post '*', request_helper
@@ -547,5 +548,6 @@ io.sockets.on 'connection', (socket) ->
 
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
+log.info durations
 log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port

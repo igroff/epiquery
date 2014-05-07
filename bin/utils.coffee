@@ -28,7 +28,7 @@ class DurationTracker
       if @longestDurations.hasOwnProperty durationId
         @longestDurations[durationId] = stats if stats.duration > @longestDurations[durationId].duration
       else
-        @longesetDurations[durationId] = stats
+        @longestDurations[durationId] = stats
       delete @openItems[durationId]
 
   getRunningItems: -> @openItems
