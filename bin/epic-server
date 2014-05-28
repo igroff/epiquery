@@ -537,6 +537,6 @@ io.sockets.on 'connection', (socket) ->
 
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
-log.info "#{JSON.stringify durations}"
+log.info durations
 log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port
