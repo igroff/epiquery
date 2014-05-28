@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "run templated queries from the http's",
   "main": "./bin/epic-server",
-  "devDependencies" : {
+  "devDependencies": {
     "optimist": "0.6.0",
     "socket.io-client": "0.9.16"
   },
@@ -20,20 +20,21 @@
     "handlebars": "1.0.10",
     "q": "0.9.2",
     "mysql": "2.0.0-alpha7",
-    "xmla4js": "git+https://github.com/glg/xmla4js.git"
+    "xmla4js": "git+https://github.com/glg/xmla4js.git",
+    "simplog": "0.0.6"
   },
   "bin": {
     "update_repo_dir": "bin/update_or_clone_repo"
   },
   "config": {
-    "db_port":"",
-    "db_host":"",
-    "db_user":"",
-    "db_password":"",
+    "db_port": "",
+    "db_host": "",
+    "db_user": "",
+    "db_password": "",
     "template_directory": "",
     "template_repository": "",
     "template_update_interval": "",
-    "http_port":"8080"
+    "http_port": "8080"
   },
   "engine": {
     "node": "0.10.3"
@@ -43,7 +44,9 @@
   },
   "repository": {
     "type": "git",
-    "url":  "git://github.com/intimonkey/epic-query.git"
+    "url": "git://github.com/intimonkey/epic-query.git"
   },
-  "os": ["!win32"]
+  "os": [
+    "!win32"
+  ]
 }

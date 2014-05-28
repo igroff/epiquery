@@ -14,6 +14,7 @@ hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
 xmla        = require 'xmla4js'
+log         = require 'simplog'
 DT          = require('./utils.coffee').DurationTracker
 durations   = new DT()
 
@@ -84,18 +85,6 @@ get_connection_config = (req, db_type) ->
       return config[db_type]
     else
       return config["#{db_type}_ro"]
-
-
-# setting up some real simple logging
-log =
-  error: (message) -> util.log "[ERROR] #{message}"
-  info:  (message) -> util.log "[INFO] #{message}"
-  debug: (message) ->
-    if process.env.DEBUG
-      util.log "[DEBUG] #{message}"
-  event: (message) ->
-    if process.env.DEBUG
-      util.log "[EVENT] #{message}"
 
 # a helper method to handle escaping of values for SQL Server
 # to avoid the evil SQL Injection....
@@ -548,6 +537,6 @@ io.sockets.on 'connection', (socket) ->
 
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
-log.info durations
+log.info "#{JSON.stringify durations}"
 log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port
