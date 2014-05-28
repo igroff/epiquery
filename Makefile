@@ -1,4 +1,4 @@
-.PHONY: start stop status test setup clean environment profile start_managed
+.PHONY: start stop status test setup clean environment profile start_managed start-managed
 SHELL=/usr/bin/env bash
 
 status: setup
@@ -6,6 +6,8 @@ status: setup
 start: setup
 	./bin/start
 start_managed: setup
+	exec ./bin/start managed
+start-managed: setup
 	exec ./bin/start managed
 profile: setup
 	./bin/start profile
