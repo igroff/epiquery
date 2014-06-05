@@ -15,8 +15,7 @@ io          = require 'socket.io'
 http        = require 'http'
 xmla        = require 'xmla4js'
 log         = require 'simplog'
-DT          = require('./utils.coffee').DurationTracker
-durations   = new DT()
+durations   = new require('./utils.coffee').DurationTracker()
 
 
 config =
@@ -434,7 +433,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond rows			  
+          resp.respond rows
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
