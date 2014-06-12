@@ -15,7 +15,8 @@ io          = require 'socket.io'
 http        = require 'http'
 xmla        = require 'xmla4js'
 log         = require 'simplog'
-durations   = new require('./utils.coffee').DurationTracker()
+durations   = require('./utils.coffee')
+durations   = new durations.DurationTracker()
 
 
 config =
@@ -402,7 +403,7 @@ request_handler = (req, resp) ->
   else if template_path.indexOf("mdx") isnt -1
     isMDXRequest = true	
   log.debug "working template path: #{template_path}"
-  stopDurationTracking = durations.start template_path
+  durationTracker = durations.start template_path
 
 
   create_error_response = (error, resp, template_path, template_context) ->
@@ -421,7 +422,7 @@ request_handler = (req, resp) ->
     if isMySQLRequest
       log.debug "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
-        stopDurationTracking()
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
@@ -429,7 +430,7 @@ request_handler = (req, resp) ->
     else if isMDXRequest
       log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
-        stopDurationTracking()
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
@@ -439,7 +440,7 @@ request_handler = (req, resp) ->
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows) ->
-        stopDurationTracking()
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
