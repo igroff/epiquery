@@ -394,9 +394,12 @@ request_handler = (req, resp) ->
   isMDXRequest = false  
 
   # we allow people to provide any path relative to the templates directory
-  # so we'll remove the initial / and keep the rest of the path while conveniently
+  # so we'll remove initial /'s and keep the rest of the path while conveniently
   # dropping any parent indicators (..)
   template_path = req.path[1..].replace(/\.\./g, '')
+  while template_path[0] is '/'
+    template_path = template_path[1..]
+
   log.debug "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
