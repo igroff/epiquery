@@ -501,6 +501,9 @@ app.get '/stats', (req, resp, next) ->
     runningQueries: durations.getRunningItems()
     longestRunningQueryInstance: durations.getLongestDurations()
     durationForLastExecution: durations.getCompletedItems()
+    executionByTemplate: durations.startCounts
+    totalStarts: durations.totalStarts
+    totalStops: durations.totalStops
   resp.send stats
 app.get '*', request_helper
 app.post '*', request_helper
