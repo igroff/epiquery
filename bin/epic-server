@@ -14,9 +14,10 @@ hogan       = require 'hogan.js'
 io          = require 'socket.io'
 http        = require 'http'
 xmla        = require 'xmla4js'
+log         = require 'simplog'
+durations   = require('./utils.coffee')
+durations   = new durations.DurationTracker()
 os          = require 'os'
-
-
 
 config =
   sql:
@@ -86,18 +87,6 @@ get_connection_config = (req, db_type) ->
       return config[db_type]
     else
       return config["#{db_type}_ro"]
-
-
-# setting up some real simple logging
-log =
-  error: (message) -> util.log "[ERROR] #{message}"
-  info:  (message) -> util.log "[INFO] #{message}"
-  debug: (message) ->
-    if process.env.DEBUG
-      util.log "[DEBUG] #{message}"
-  event: (message) ->
-    if process.env.DEBUG
-      util.log "[EVENT] #{message}"
 
 # a helper method to handle escaping of values for SQL Server
 # to avoid the evil SQL Injection....
@@ -287,7 +276,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   ]).then(
     () -> callback null, result_sets
   ).fail( (error) ->
-    log.error "template context: #{JSON.stringify(template_context)}"
+    log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
     callback error, result_sets
   ).finally( () ->
       log_promise 'connect', connect_deferred.promise,
@@ -410,15 +399,20 @@ request_handler = (req, resp) ->
   isMDXRequest = false  
 
   # we allow people to provide any path relative to the templates directory
-  # so we'll remove the initial / and keep the rest of the path while conveniently
+  # so we'll remove initial /'s and keep the rest of the path while conveniently
   # dropping any parent indicators (..)
   template_path = req.path[1..].replace(/\.\./g, '')
+
+  while template_path[0] is '/'
+    template_path = template_path[1..]
+
   log.info "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
     isMDXRequest = true	
   log.debug "working template path: #{template_path}"
+  durationTracker = durations.start template_path
 
 
   create_error_response = (error, resp, template_path, template_context) ->
@@ -437,6 +431,7 @@ request_handler = (req, resp) ->
     if isMySQLRequest
       log.debug "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
@@ -444,31 +439,43 @@ request_handler = (req, resp) ->
     else if isMDXRequest
       log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond rows			  
+          resp.respond rows
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows) ->
+        durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
             log.debug "#{rows.length}(s) result sets returned"
+            
+            row_count = 0
             result = []
             for result_set in rows
+              row_count += result_set.length
               result.push _.map result_set, (columns) ->
                 _.object _.map columns, (column) ->
                   [column.metadata.colName, column.value]
+            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
+
           else
             log.debug "1 result set returned"
+
+            row_count = 0 
+            if rows[0]
+              row_count = rows[0].length
             result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
+            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
           resp.respond result
 
   # check to see if we're running a 'development' request which is a
@@ -508,6 +515,15 @@ request_helper = (req, resp) ->
 app = express()
 server = http.createServer app
 app.use express.bodyParser()
+app.get '/stats', (req, resp, next) ->
+  stats=
+    runningQueries: durations.getRunningItems()
+    longestRunningQueryInstance: durations.getLongestDurations()
+    durationForLastExecution: durations.getCompletedItems()
+    executionByTemplate: durations.startCounts
+    totalStarts: durations.totalStarts
+    totalStops: durations.totalStops
+  resp.send stats
 app.get '*', request_helper
 app.post '*', request_helper
 app.head '*', (req, resp) ->
@@ -543,5 +559,6 @@ io.sockets.on 'connection', (socket) ->
 
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
+log.info durations
 log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port
