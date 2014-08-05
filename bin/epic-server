@@ -455,16 +455,26 @@ request_handler = (req, resp) ->
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
             log.debug "#{rows.length}(s) result sets returned"
+            
+            row_count = 0
             result = []
             for result_set in rows
+              row_count += result_set.length
               result.push _.map result_set, (columns) ->
                 _.object _.map columns, (column) ->
                   [column.metadata.colName, column.value]
+            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
+
           else
             log.debug "1 result set returned"
+
+            row_count = 0 
+            if rows[0]
+              row_count = rows[0].length
             result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
+            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
           resp.respond result
 
   # check to see if we're running a 'development' request which is a
