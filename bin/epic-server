@@ -17,7 +17,9 @@ xmla        = require 'xmla4js'
 log         = require 'simplog'
 durations   = require('./utils.coffee')
 durations   = new durations.DurationTracker()
+os          = require 'os'
 
+hostname = os.hostname()
 
 config =
   sql:
@@ -389,6 +391,9 @@ request_handler = (req, resp) ->
   context = _.extend {}, req.body, req.query, req.headers
 
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
+  resp.set 'X-Hostname', hostname
+  resp.set 'X-Port', config.http_port
+
   set_cors_headers req, resp
   isMySQLRequest = false
   isMDXRequest = false  
@@ -400,7 +405,7 @@ request_handler = (req, resp) ->
   while template_path[0] is '/'
     template_path = template_path[1..]
 
-  log.debug "raw template path: #{template_path}"
+  log.info "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
