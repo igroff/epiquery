@@ -277,6 +277,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
     () -> callback null, result_sets
   ).fail( (error) ->
     log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
+    log.error error
     callback error, result_sets
   ).finally( () ->
       log_promise 'connect', connect_deferred.promise,
@@ -290,7 +291,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
   connect_deferred = Q.defer()
   request_deferred = Q.defer()
 
-  log.debug "using template: #{template_name}"
+  log.info "using template: #{template_name}"
   template_loaded = Q.nfcall(fs.readFile,
     path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'})
@@ -390,6 +391,8 @@ request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
 
+  log.info "Url: #{req.path}, Context: #{JSON.stringify(context)}"
+
   resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
   resp.set 'X-Hostname', hostname
   resp.set 'X-Port', config.http_port
@@ -429,7 +432,7 @@ request_handler = (req, resp) ->
 
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
-      log.debug "processing mysql query"
+      log.info "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
         durationTracker.stop()
         if error
@@ -437,7 +440,7 @@ request_handler = (req, resp) ->
         else
           resp.respond rows
     else if isMDXRequest
-      log.debug "processing mdx query"
+      log.info "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
         durationTracker.stop()
         if error
@@ -445,7 +448,7 @@ request_handler = (req, resp) ->
         else
           resp.respond rows
     else
-      log.debug "processing T-SQL query"
+      log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows) ->
