@@ -56,7 +56,11 @@ config =
     catalog:  process.env.EPIQUERY_MDX_CATALOG	
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
-  status_dir: process.env.EPIQUERY_STATUS_DIR | '/dev/shm'
+  status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
+
+# yes, this is a global variable we use it to track our requests so we can
+# create unique identifiers per request
+request_counter = 0
 
 #regex to replace MS special charactes
 special_characters = {
@@ -388,6 +392,18 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
     callback error, null
   ).done()  
   
+# here we will create a full path to the file that will be used to store any
+# status about a currently executing request so this will return a path that
+# should be unique to a request running in the process handling
+create_status_path = (template_path) ->
+    hasher = crypto.createHash 'sha1'
+    hasher.update template_path
+    hasher.update "#{new Date().getTime()}"
+    hasher.update "#{request_counter++}"
+    hasher.update "#{process.pid}"
+    path.normalize path.join(config.status_dir, "#{process.pid}.#{hasher.digest('hex')}")
+    
+
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
@@ -409,6 +425,25 @@ request_handler = (req, resp) ->
 
   while template_path[0] is '/'
     template_path = template_path[1..]
+
+  # initialize our request status path variable so we can use it later, more
+  # importantly, if so configured, save out status data for the current request
+  # for debugging purposes
+  # So, there should have never been sockets in here, it's just dumb... but
+  # there are and we're not gonna bother to do this with inbound socket requests
+  # because no one really uses them and there's no point
+  req_status_path = undefined
+  if ( config.status_dir && !req.irsocket )
+    req_status_path = create_status_path(template_path)
+    status_data = "#{template_path}\nStarted At: #{new Date()}\n"
+    fs.writeFileSync req_status_path, status_data
+    remove_status_data = () ->
+      fs.unlink req_status_path, (err) ->
+        if err
+          log.error "error removing status file #{req_status_path}, #{err}"
+    resp.on 'close', remove_status_data
+    resp.on 'finish', remove_status_data
+    
 
   log.info "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
@@ -552,18 +587,21 @@ io.sockets.on 'connection', (socket) ->
     req.body = data.data
     req.path = data.path
     req.method = req.method || "get"
+    req.irsocket = true
     # the only thing done with the response that is interesting is
     # calling respond at the end of processing.  So we're gonna make
     # a send method that will support that
     resp.respond = (data) -> cb(data)
     resp.headers = {}
     resp.set = ->
+    resp.irsocket = true
     req.get = ->
     request_handler req, resp
 
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
 log.info durations
+log.info "Configuration: #{JSON.stringify config}"
 
 # if we don't have a status dir set ( it must exist ) 
 # then we'll drop the status_dir value since we'll later use it as a flag
@@ -572,8 +610,7 @@ if ( !fs.existsSync(config.status_dir) )
   delete(config.status_dir)
 else
   # create our status directory if it's not there, race condition understood sir
-  config.status_dir = path.join(config.status_dir "epiquery_status")
+  config.status_dir = path.join(config.status_dir, "epiquery_status")
   fs.mkdirSync(config.status_dir) unless ( fs.existsSync(config.status_dir) )
 
-log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port
