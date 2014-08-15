@@ -56,6 +56,7 @@ config =
     catalog:  process.env.EPIQUERY_MDX_CATALOG	
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
+  status_dir: process.env.EPIQUERY_STATUS_DIR | '/dev/shm'
 
 #regex to replace MS special charactes
 special_characters = {
@@ -564,4 +565,10 @@ log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
 log.info durations
 log.info "Configuration: #{JSON.stringify config}"
+# if we don't have a status dir set ( it must exist ) 
+# then we'll drop the status_dir value since we'll later use it as a flag
+# to determine if we shold log status
+if ( !fs.existsSync(config.status_dir) ){
+  delete(config.status_dir)
+}
 server.listen config.http_port
