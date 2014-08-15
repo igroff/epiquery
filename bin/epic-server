@@ -564,11 +564,16 @@ io.sockets.on 'connection', (socket) ->
 log.info "Starting epi server on port: #{config.http_port}"
 log.debug "Debug logging enabled"
 log.info durations
-log.info "Configuration: #{JSON.stringify config}"
+
 # if we don't have a status dir set ( it must exist ) 
 # then we'll drop the status_dir value since we'll later use it as a flag
 # to determine if we shold log status
-if ( !fs.existsSync(config.status_dir) ){
+if ( !fs.existsSync(config.status_dir) )
   delete(config.status_dir)
-}
+else
+  # create our status directory if it's not there, race condition understood sir
+  config.status_dir = path.join(config.status_dir "epiquery_status")
+  fs.mkdirSync(config.status_dir) unless ( fs.existsSync(config.status_dir) )
+
+log.info "Configuration: #{JSON.stringify config}"
 server.listen config.http_port
