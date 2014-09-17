@@ -283,7 +283,10 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   ).fail( (error) ->
     log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
     log.error error
-    callback error, result_sets
+    try
+      callback error, result_sets
+    catch e
+      log.error e
   ).finally( () ->
       log_promise 'connect', connect_deferred.promise,
       log_promise 'connect_end', connect_end_deferred.promise,
