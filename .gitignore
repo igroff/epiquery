@@ -6,3 +6,4 @@ test/tmp/
 bin/v*
 bin/alias
 *.swp
+node_modules/
