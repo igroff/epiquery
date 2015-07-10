@@ -472,7 +472,10 @@ request_handler = (req, resp) ->
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
       log.info "processing mysql query"
+      start_time = new Date().getTime()
       exec_mysql_query req, template_path, context, (error, rows) ->
+        executionTimeInMillis = (new Date()).getTime() - start_time
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{executionTimeInMillis}ms"
         durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
@@ -480,7 +483,10 @@ request_handler = (req, resp) ->
           resp.respond rows
     else if isMDXRequest
       log.info "processing mdx query"
+      start_time = new Date().getTime()
       exec_mdx_query req, template_path, context, (error, rows) ->
+        executionTimeInMillis = (new Date()).getTime() - start_time
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{executionTimeInMillis}ms"
         durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
@@ -490,7 +496,10 @@ request_handler = (req, resp) ->
       log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
+      start_time = new Date().getTime()
       exec_sql_query req, template_path, context, (error, rows) ->
+        executionTimeInMillis = (new Date()).getTime() - start_time
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{executionTimeInMillis}ms"
         durationTracker.stop()
         if error
           resp.respond create_error_response(error, resp, template_path, context)
