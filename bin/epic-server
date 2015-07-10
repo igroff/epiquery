@@ -448,7 +448,7 @@ request_handler = (req, resp) ->
     resp.on 'finish', remove_status_data
 
 
-  log.info "raw template path: #{template_path}"
+  log.debug "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
@@ -471,7 +471,7 @@ request_handler = (req, resp) ->
 
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
-      log.info "processing mysql query"
+      log.debug "processing mysql query"
       start_time = new Date().getTime()
       exec_mysql_query req, template_path, context, (error, rows) ->
         executionTimeInMillis = (new Date()).getTime() - start_time
@@ -482,7 +482,7 @@ request_handler = (req, resp) ->
         else
           resp.respond rows
     else if isMDXRequest
-      log.info "processing mdx query"
+      log.debug "processing mdx query"
       start_time = new Date().getTime()
       exec_mdx_query req, template_path, context, (error, rows) ->
         executionTimeInMillis = (new Date()).getTime() - start_time
@@ -493,7 +493,7 @@ request_handler = (req, resp) ->
         else
           resp.respond rows
     else
-      log.info "processing T-SQL query"
+      log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       start_time = new Date().getTime()
