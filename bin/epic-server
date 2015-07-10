@@ -53,7 +53,7 @@ config =
     password: process.env.EPIQUERY_MDX_PASSWORD
     server:   process.env.EPIQUERY_MDX_SERVER
     url:      process.env.EPIQUERY_MDX_URL
-    catalog:  process.env.EPIQUERY_MDX_CATALOG	
+    catalog:  process.env.EPIQUERY_MDX_CATALOG
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
   http_port: process.env.EPIQUERY_HTTP_PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
@@ -67,7 +67,7 @@ special_characters = {
   "8220": {"regex": new RegExp(String.fromCharCode(8220), "gi"), "replace": '"'} # “
   ,"8221": {"regex": new RegExp(String.fromCharCode(8221), "gi"), "replace": '"'} # ”
   ,"8216": {"regex":  new RegExp(String.fromCharCode(8216), "gi"), "replace": "'"} # ‘
-  ,"8217": {"regex": new RegExp(String.fromCharCode(8217), "gi"), "replace": "'"} # ’ 
+  ,"8217": {"regex": new RegExp(String.fromCharCode(8217), "gi"), "replace": "'"} # ’
   ,"8211": {"regex": new RegExp(String.fromCharCode(8211), "gi"), "replace": "-"} # –
   ,"8212": {"regex": new RegExp(String.fromCharCode(8212), "gi"), "replace": "--"} # —
   ,"189": {"regex": new RegExp(String.fromCharCode(189), "gi"), "replace": "1/2"} # ½
@@ -114,7 +114,7 @@ escape_for_tsql = (value) ->
 # whitespace is important, we don't want to strip it
 dot.templateSettings.strip = false
 
-# keep track of our renderers, we're storing them by 
+# keep track of our renderers, we're storing them by
 # their associated file extension as that is how we'll
 # be looking them up
 renderers = {}
@@ -168,7 +168,7 @@ prefix_handlers =
   mdx:
     get:  (sql) -> ""
     post: (sql) -> ""
-    head: (sql) -> ""	
+    head: (sql) -> ""
 
 suffix_handlers =
   mssql:
@@ -182,7 +182,7 @@ suffix_handlers =
   mdx:
     get:  (sql) -> ""
     post: (sql) -> ""
-    head: (sql) -> ""	
+    head: (sql) -> ""
 
 decorate_mssql_script = (request_type, sql) ->
   t = request_type.toLowerCase()
@@ -211,7 +211,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   request_complete_deferred  = Q.defer()
 
   conn = new tedious.Connection get_connection_config(req, 'sql')
-  conn.on 'errorMessage', (message) -> 
+  conn.on 'errorMessage', (message) ->
     log.error "On request #{req.path} with error #{JSON.stringify(message)}"
   conn.on 'connect', connect_deferred.makeNodeResolver()
   conn.on 'end', () -> connect_end_deferred.resolve()
@@ -231,7 +231,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       rendered = renderer template.toString(), template_context
       log.debug "template context: #{JSON.stringify(template_context)}"
       log.debug "rendered template(type #{typeof rendered})\n #{rendered}"
-      request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver()) 
+      request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver())
       # make sure that no matter how our request-complete event ends, we close the connection
       request_complete_deferred.promise.finally () -> conn.close()
       request_complete_deferred.promise.then () ->
@@ -352,7 +352,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
   ).then( (template) ->
     Q.try( () ->
       renderer = get_renderer_for_template template_name
-      log.debug "raw template: #{template}"	  
+      log.debug "raw template: #{template}"
       rendered_template = renderer template.toString(), template_context
       log.info "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
       xmlaRequest =
@@ -393,8 +393,8 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
   , (error) ->
     log.error('MDX query failed to load template error=' + error)
     callback error, null
-  ).done()  
-  
+  ).done()
+
 # here we will create a full path to the file that will be used to store any
 # status about a currently executing request so this will return a path that
 # should be unique to a request running in the process handling
@@ -405,7 +405,7 @@ create_status_path = (template_path) ->
     hasher.update "#{request_counter++}"
     hasher.update "#{process.pid}"
     path.normalize path.join(config.status_dir, "#{process.pid}.#{hasher.digest('hex')}")
-    
+
 
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
@@ -419,7 +419,7 @@ request_handler = (req, resp) ->
 
   set_cors_headers req, resp
   isMySQLRequest = false
-  isMDXRequest = false  
+  isMDXRequest = false
 
   # we allow people to provide any path relative to the templates directory
   # so we'll remove initial /'s and keep the rest of the path while conveniently
@@ -446,13 +446,13 @@ request_handler = (req, resp) ->
           log.error "error removing status file #{req_status_path}, #{err}"
     resp.on 'close', remove_status_data
     resp.on 'finish', remove_status_data
-    
+
 
   log.info "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
-    isMDXRequest = true	
+    isMDXRequest = true
   log.debug "working template path: #{template_path}"
   durationTracker = durations.start template_path
 
@@ -498,7 +498,7 @@ request_handler = (req, resp) ->
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
             log.debug "#{rows.length}(s) result sets returned"
-            
+
             row_count = 0
             result = []
             for result_set in rows
@@ -511,7 +511,7 @@ request_handler = (req, resp) ->
           else
             log.debug "1 result set returned"
 
-            row_count = 0 
+            row_count = 0
             if rows[0]
               row_count = rows[0].length
             result = _.map rows[0], (columns) ->
@@ -538,7 +538,7 @@ request_handler = (req, resp) ->
   else
     # normal query path
     run_query req, resp, template_path, context
-   
+
 
 set_cors_headers = (req, resp) ->
   resp.set 'Access-Control-Allow-Origin', req.headers['origin'] or '*'
@@ -585,7 +585,7 @@ io.sockets.on 'connection', (socket) ->
     req = resp = {}
     # we're using the originally designed http handlers so
     # we'll just put our data in one of the spots that is already
-    # checked, and count on the magic of Javscript to handle the 
+    # checked, and count on the magic of Javscript to handle the
     # missing stuff gracefully
     req.body = data.data
     req.path = data.path
@@ -606,7 +606,7 @@ log.debug "Debug logging enabled"
 log.info durations
 log.info "Configuration: #{JSON.stringify config}"
 
-# if we don't have a status dir set ( it must exist ) 
+# if we don't have a status dir set ( it must exist )
 # then we'll drop the status_dir value since we'll later use it as a flag
 # to determine if we shold log status
 if ( !fs.existsSync(config.status_dir) )
