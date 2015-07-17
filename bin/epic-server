@@ -209,6 +209,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   connect_end_deferred       = Q.defer()
   template_loaded_deferred   = Q.defer()
   request_complete_deferred  = Q.defer()
+  rendered_template          = undefined
 
   conn = new tedious.Connection get_connection_config(req, 'sql')
   conn.on 'errorMessage', (message) -> 
@@ -229,6 +230,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       renderer = get_renderer_for_template template_name
       log.debug "raw template: #{template}"
       rendered = renderer template.toString(), template_context
+      rendered_template = rendered
       log.debug "template context: #{JSON.stringify(template_context)}"
       log.debug "rendered template(type #{typeof rendered})\n #{rendered}"
       request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver()) 
@@ -261,7 +263,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
       conn.execSqlBatch request
-  ).fail (error) -> callback error, result_sets # something in the spread failed
+  ).fail (error) -> callback error, result_sets, rendered_template # something in the spread failed
 
   connect_end_deferred.promise.then () ->
     # this is silly, but... there's a case where tedious will fail to
@@ -279,12 +281,12 @@ exec_sql_query = (req, template_name, template_context, callback) ->
     template_loaded_deferred.promise,
     request_complete_deferred.promise
   ]).then(
-    () -> callback null, result_sets
+    () -> callback null, result_sets, rendered_template
   ).fail( (error) ->
     log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
     log.error error
     try
-      callback error, result_sets
+      callback error, result_sets, rendered_template
     catch e
       log.error e
   ).finally( () ->
@@ -457,7 +459,7 @@ request_handler = (req, resp) ->
   durationTracker = durations.start template_path
 
 
-  create_error_response = (error, resp, template_path, template_context) ->
+  create_error_response = (error, resp, template_path, template_context, rendered_template) ->
     resp.statusCode = 500
     result = {status: "error"}
     if typeof(error) is "string"
@@ -465,6 +467,8 @@ request_handler = (req, resp) ->
     else
       result.message = error.message
       log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}\n\nContext:\n  #{JSON.stringify(template_context)}"
+    if typeof(rendered_template) isnt undefined && template_context['___debug']
+      result.rendered_template = rendered_template
     # try and avoid giving too much away in our error message
     result.message = result.message.replace process.cwd(), ""
     result
@@ -490,10 +494,10 @@ request_handler = (req, resp) ->
       log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-      exec_sql_query req, template_path, context, (error, rows) ->
+      exec_sql_query req, template_path, context, (error, rows, rendered_template) ->
         durationTracker.stop()
         if error
-          resp.respond create_error_response(error, resp, template_path, context)
+          resp.respond create_error_response(error, resp, template_path, context, rendered_template)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets

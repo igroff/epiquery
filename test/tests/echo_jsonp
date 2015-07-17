@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s "http://${EPIQUERY_SERVER-localhost}:${EPIQUERY_SERVER_PORT-9090}/test/echo.dot?name=pants&callback=foo"
+curl -s "http://${EPIQUERY_SERVER-localhost}:${EPIQUERY_SERVER_PORT-9090}/test/echo.dot?name=pants&callback=foo" -A 'curl/7.30.0'

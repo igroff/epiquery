@@ -3,9 +3,10 @@ source ../bin/setup-environment
 export EPIQUERY_SERVER=localhost
 TEST_URL=http://${EPIQUERY_SERVER}:${EPIQUERY_HTTP_PORT-9090}
 echo Using ${TEST_URL} for testing
+mkdir -p tmp/
 function run_test() {
   PATH_NAME=`echo $1 | sed -e s[?.*[[g`
-  curl -X ${METHOD-GET} -s "${TEST_URL}/test/$1" ${@:2} > tmp/$PATH_NAME.result
+  curl -X ${METHOD-GET} -A 'curl/7.30.0' -s "${TEST_URL}/test/$1" ${@:2} > tmp/$PATH_NAME.result
   diff data/$PATH_NAME.expected tmp/$PATH_NAME.result
   DIFF_RESULT=$?
   printf "Test %s " ${PATH_NAME}
@@ -17,7 +18,7 @@ function run_test() {
 }
 function do_post(){
   PATH_NAME=`echo $1 | sed -e s[?.*[[g`
-  curl -X POST -s "${TEST_URL}/test/$1" ${@:2} > tmp/$PATH_NAME.result
+  curl -X POST -A 'curl/7.30.0' -s "${TEST_URL}/test/$1" ${@:2} > tmp/$PATH_NAME.result
   diff data/$PATH_NAME.expected tmp/$PATH_NAME.result
   DIFF_RESULT=$?
   printf "Test %s " ${PATH_NAME}
@@ -31,7 +32,7 @@ function run_dynamic_test(){
   # development query tests
   TEST_NAME=$1
   TEMPLATE=$2
-  curl -s ${TEST_URL}/$1  --data-urlencode "__template=${TEMPLATE}" > tmp/${TEST_NAME}.result "$@"
+  curl -s ${TEST_URL}/$1 -A 'curl/7.30.0' --data-urlencode "__template=${TEMPLATE}" > tmp/${TEST_NAME}.result "$@"
 
   diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
   DIFF_RESULT=$?
@@ -92,7 +93,7 @@ run_dynamic_test dynamic1 'select 1 [column]'
 run_dynamic_test dynamic2 "select 'Hello, '+'{{name}}' [message]" --data-urlencode 'name=ian'
 run_dynamic_test mysql_login_with_header 'select user();' -H 'X-DB-CONNECTION: {"host":"localhost", "user":"epiquery"}'
 run_dynamic_test mysql_login_as_configd 'select user()'
-run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"GLGROUP_LIVE", "password":"GLGROUP_LIVE", "server":"10.211.55.5"}'
+run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"hulk", "password":"smash", "server":"glgdb503a.glgint.net"}'
 run_dynamic_test sql_server_login_as_configd 'select suser_name()' 
 
 run_socket_test socket_mysql_echo.dot mysql_echo.dot '{"howdy": "ian", "val":1}'
