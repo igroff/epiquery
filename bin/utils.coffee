@@ -43,7 +43,8 @@ class DurationTracker
       @lastDurationTracked[durationId] = stats
       @totalStops++
       @stopCounts[durationId]++
-      null # yeah, really nothing returned
+      # you know, if we return the duration here we can use it 
+      stats.duration
     controller=
       stop: stop
 
