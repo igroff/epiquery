@@ -67,7 +67,7 @@ special_characters = {
   "8220": {"regex": new RegExp(String.fromCharCode(8220), "gi"), "replace": '"'} # “
   ,"8221": {"regex": new RegExp(String.fromCharCode(8221), "gi"), "replace": '"'} # ”
   ,"8216": {"regex":  new RegExp(String.fromCharCode(8216), "gi"), "replace": "'"} # ‘
-  ,"8217": {"regex": new RegExp(String.fromCharCode(8217), "gi"), "replace": "'"} # ’ 
+  ,"8217": {"regex": new RegExp(String.fromCharCode(8217), "gi"), "replace": "'"} # ’
   ,"8211": {"regex": new RegExp(String.fromCharCode(8211), "gi"), "replace": "-"} # –
   ,"8212": {"regex": new RegExp(String.fromCharCode(8212), "gi"), "replace": "--"} # —
   ,"189": {"regex": new RegExp(String.fromCharCode(189), "gi"), "replace": "1/2"} # ½
@@ -114,7 +114,7 @@ escape_for_tsql = (value) ->
 # whitespace is important, we don't want to strip it
 dot.templateSettings.strip = false
 
-# keep track of our renderers, we're storing them by 
+# keep track of our renderers, we're storing them by
 # their associated file extension as that is how we'll
 # be looking them up
 renderers = {}
@@ -448,7 +448,6 @@ request_handler = (req, resp) ->
           log.error "error removing status file #{req_status_path}, #{err}"
     resp.on 'close', remove_status_data
     resp.on 'finish', remove_status_data
-    
 
   log.info "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
@@ -502,7 +501,6 @@ request_handler = (req, resp) ->
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
             log.debug "#{rows.length}(s) result sets returned"
-            
             row_count = 0
             result = []
             for result_set in rows
@@ -541,7 +539,6 @@ request_handler = (req, resp) ->
   else
     # normal query path
     run_query req, resp, template_path, context
-   
 
 set_cors_headers = (req, resp) ->
   resp.set 'Access-Control-Allow-Origin', req.headers['origin'] or '*'
