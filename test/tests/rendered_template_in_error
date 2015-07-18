@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s 'http://localhost:9090/test/truncate_data_error.mustache?___debug=true&jic_context_thing=pants'
+curl -s 'http://localhost:9090/test/truncate_data_error.mustache?jic_context_thing=pants'

@@ -467,7 +467,7 @@ request_handler = (req, resp) ->
     else
       result.message = error.message
       log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}\n\nContext:\n  #{JSON.stringify(template_context)}"
-    if typeof(rendered_template) isnt undefined && template_context['___debug']
+    if typeof(rendered_template) isnt undefined
       result.rendered_template = rendered_template
     # try and avoid giving too much away in our error message
     result.message = result.message.replace process.cwd(), ""
