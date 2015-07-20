@@ -43,24 +43,6 @@ function run_dynamic_test(){
     echo "failed"
   fi
 }
-function run_socket_test(){
-  # development query tests
-  TEST_NAME=$1
-  TEMPLATE_NAME=$2
-  DATA=$3
-  pushd .. > /dev/null 2>&1
-  ./bin/start epic-socket-query --template="/test/${TEMPLATE_NAME}" --data="${DATA}" > test/tmp/${TEST_NAME}.result
-  popd > /dev/null 2>&1
-
-  diff data/${TEST_NAME}.expected tmp/${TEST_NAME}.result
-  DIFF_RESULT=$?
-  printf "Test %s " $TEST_NAME
-  if [ $DIFF_RESULT -eq 0 ]; then
-    echo "success"
-  else
-    echo "failed"
-  fi
-}
 
 run_test error
 run_test sysobjects
@@ -95,5 +77,3 @@ run_dynamic_test mysql_login_with_header 'select user();' -H 'X-DB-CONNECTION: {
 run_dynamic_test mysql_login_as_configd 'select user()'
 run_dynamic_test sql_server_login_with_header 'select suser_name()' -H 'X-DB-CONNECTION: {"userName":"hulk", "password":"smash", "server":"glgdb503a.glgint.net"}'
 run_dynamic_test sql_server_login_as_configd 'select suser_name()' 
-
-run_socket_test socket_mysql_echo.dot mysql_echo.dot '{"howdy": "ian", "val":1}'
