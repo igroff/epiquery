@@ -1,8 +1,7 @@
 {
   "name": "epiquery",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "run templated queries from the http's",
-  "main": "./bin/epic-server",
   "devDependencies": {
     "optimist": "0.6.0"
   },
@@ -23,25 +22,15 @@
   "bin": {
     "update_repo_dir": "bin/update_or_clone_repo"
   },
-  "config": {
-    "db_port": "",
-    "db_host": "",
-    "db_user": "",
-    "db_password": "",
-    "template_directory": "",
-    "template_repository": "",
-    "template_update_interval": "",
-    "http_port": "8080"
-  },
   "engines": {
     "node": "0.12.7"
   },
   "scripts": {
-    "start": "./pre-install && ./ar-start ${PORT}"
+    "start": "./ar-start ${PORT}"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/intimonkey/epic-query.git"
+    "url": "git://github.com/igroff/epiquery.git"
   },
   "os": [
     "!win32"
