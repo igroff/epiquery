@@ -78,8 +78,6 @@ special_characters = {
   ,"8230": {"regex": new RegExp(String.fromCharCode(8230), "gi"), "replace": "..."} # …
 }
 
-hostname = os.hostname()
-
 # we support the ability to specify your connection details in the
 # request, this allows us to pull the correct connection info
 get_connection_config = (req, db_type) ->
@@ -407,7 +405,6 @@ create_status_path = (template_path) ->
     hasher.update "#{request_counter++}"
     hasher.update "#{process.pid}"
     path.normalize path.join(config.status_dir, "#{process.pid}.#{hasher.digest('hex')}")
-    
 
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
@@ -415,11 +412,6 @@ request_handler = (req, resp) ->
 
   log.info "Url: #{req.path}, Context: #{JSON.stringify(context)}"
 
-  resp.set 'X-SHA', process.env.ENVIRONMENT_SHA
-  resp.set 'X-Hostname', hostname
-  resp.set 'X-Port', config.http_port
-
-  set_cors_headers req, resp
   isMySQLRequest = false
   isMDXRequest = false
 
@@ -540,12 +532,6 @@ request_handler = (req, resp) ->
     # normal query path
     run_query req, resp, template_path, context
 
-set_cors_headers = (req, resp) ->
-  resp.set 'Access-Control-Allow-Origin', req.headers['origin'] or '*'
-  resp.set 'Access-Control-Allow-Credentials', 'true'
-  resp.set 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS'
-  resp.set 'Access-Control-Allow-Headers', req.headers['access-control-request-headers'] or '*'
-
 request_helper = (req, resp) ->
   if req.query['callback']
     resp.respond = () ->
@@ -568,10 +554,6 @@ app.get '/stats', (req, resp, next) ->
 app.get '*', request_helper
 app.post '*', request_helper
 app.head '*', (req, resp) ->
-  resp.send ''
-# CORS
-app.options '*', (req, resp) ->
-  set_cors_headers req, resp
   resp.send ''
 
 if cluster.isMaster
