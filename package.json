@@ -34,8 +34,8 @@
     "template_update_interval": "",
     "http_port": "8080"
   },
-  "engine": {
-    "node": "0.10.3"
+  "engines": {
+    "node": "0.12.7"
   },
   "scripts": {
     "start": "./pre-install && ./ar-start ${PORT}"
