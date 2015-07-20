@@ -430,7 +430,7 @@ request_handler = (req, resp) ->
   # there are and we're not gonna bother to do this with inbound socket requests
   # because no one really uses them and there's no point
   req_status_path = undefined
-  if ( config.status_dir && !req.irsocket )
+  if config.status_dir
     req_status_path = create_status_path(template_path)
     status_data = "#{template_path}\nStarted At: #{new Date()}\n"
     fs.writeFileSync req_status_path, status_data
