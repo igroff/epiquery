@@ -577,10 +577,10 @@ app.options '*', (req, resp) ->
 if cluster.isMaster
   fork_worker = () ->
     worker = cluster.fork()
-    cluster.on 'exit', (worker, code, signal) ->
+    worker.once 'exit', (worker, code, signal) ->
       log.error "worker died with error code #{code} and signal #{signal}"
       if signal isnt "SIGTERM"
-        cluster.fork()
+        fork_worker()
 
   log.info "Starting epi server on port: #{config.http_port}"
   log.debug "Debug logging enabled"
