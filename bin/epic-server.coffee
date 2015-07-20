@@ -582,12 +582,11 @@ if cluster.isMaster
       if signal isnt "SIGTERM"
         cluster.fork()
 
-
   log.info "Starting epi server on port: #{config.http_port}"
   log.debug "Debug logging enabled"
   log.info durations
   log.info "Configuration: #{JSON.stringify config}"
-  [ fork_worker() for i in config.worker_count ]
+  [ fork_worker() for i in [1..config.worker_count] ]
 else
   log.info "worker starting on port #{config.http_port}"
   # if we don't have a status dir set ( it must exist ) 
