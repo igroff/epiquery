@@ -1,2 +1,0 @@
-#! /usr/bin/env bash
-ssh -i ~/.ssh/glg_source_key glgapp@10.20.41.240
