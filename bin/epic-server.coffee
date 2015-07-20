@@ -577,7 +577,7 @@ app.options '*', (req, resp) ->
 if cluster.isMaster
   fork_worker = () ->
     worker = cluster.fork()
-    worker.once 'exit', (worker, code, signal) ->
+    worker.once 'exit', (code, signal) ->
       log.error "worker died with error code #{code} and signal #{signal}"
       if signal isnt "SIGTERM"
         fork_worker()
