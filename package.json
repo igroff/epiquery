@@ -4,15 +4,13 @@
   "description": "run templated queries from the http's",
   "main": "./bin/epic-server",
   "devDependencies": {
-    "optimist": "0.6.0",
-    "socket.io-client": "0.9.16"
+    "optimist": "0.6.0"
   },
   "dependencies": {
     "coffee-script": "1.9.3",
     "docopt": "0.4.0",
     "dot": "1.0.1",
     "express": "3.1.0",
-    "forever": "0.10.0",
     "handlebars": "1.0.10",
     "hogan.js": "2.0.0",
     "mysql": "2.0.0-alpha7",
