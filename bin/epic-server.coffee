@@ -1,7 +1,8 @@
-tedious     = require 'tedious'
+Promise     = require 'bluebird'
+tedious     = Promise.promisifyAll require 'tedious'
 path        = require 'path'
 express     = require 'express'
-fs          = require 'fs'
+fs          = Promise.promisifyAll require 'fs'
 dot         = require 'dot'
 util        = require 'util'
 _           = require 'underscore'
@@ -200,12 +201,21 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
+render_template = (template_name, template_context) ->
+  template_path = path.join(path.normalize(config.template_directory), template_name)
+  fs.readFileAsync(template_path).
+    then((template_content) ->
+      renderer = get_renderer_for_template template_name
+      log.debug "template context: #{JSON.stringify(template_context)}"
+      log.debug "raw template: #{template_content}"
+      renderer template_content.toString(), template_context
+    )
+
 exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
   connect_deferred           = Q.defer()
   connect_end_deferred       = Q.defer()
-  template_loaded_deferred   = Q.defer()
   request_complete_deferred  = Q.defer()
   rendered_template          = undefined
 
@@ -215,35 +225,17 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   conn.on 'connect', connect_deferred.makeNodeResolver()
   conn.on 'end', () -> connect_end_deferred.resolve()
 
-  # need to read our template to get the contents
-  fs.readFile(
-    path.join(path.normalize(config.template_directory), template_name),
-    {encoding:'utf8'},
-    template_loaded_deferred.makeNodeResolver())
-
-  # once we have a connection and our template contents, then we can continue
-  Q.all([template_loaded_deferred.promise, connect_deferred.promise]).spread(
+  # once we have a connection and our template rendered, then we can continue
+  Q.all([render_template(template_name, template_context), connect_deferred.promise]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
-    (template) ->
-      renderer = get_renderer_for_template template_name
-      log.debug "raw template: #{template}"
-      rendered = renderer template.toString(), template_context
-      rendered_template = rendered
-      log.debug "template context: #{JSON.stringify(template_context)}"
-      log.debug "rendered template(type #{typeof rendered})\n #{rendered}"
-      request = new tedious.Request(rendered, request_complete_deferred.makeNodeResolver())
+    (query) ->
+      log.debug "executing query:\n #{query}"
+      rendered_template = query
+      request = new tedious.Request(rendered_template, request_complete_deferred.makeNodeResolver())
       # make sure that no matter how our request-complete event ends, we close the connection
       request_complete_deferred.promise.finally () -> conn.close()
       request_complete_deferred.promise.then () ->
-        if row_data isnt null
-          result_sets.push(row_data)
-        log.event "request-completed #{arguments[0]}, #{arguments[1]}"
-      # <for debugging>
-      request.on 'done', () -> a=arguments; log.event("done #{a[0]}, #{a[1]}, #{a[2]}")
-      request.on 'columnMetadata', () -> log.event("columnMetadata")
-      request.on 'doneProc', () -> a=arguments; log.event("doneProc #{a[0]}, #{a[1]}, #{a[2]}, #{a[3]}")
-      request.on 'doneInProc', () -> a=arguments; log.event("doneInProc #{a[0]}, #{a[1]}, #{a[2]}")
-      # </for debugging>
+        result_sets.push(row_data) unless row_data is null
 
       # we use this event to split up multipe result sets as each result set
       # is preceeded by a columnMetadata event
@@ -251,12 +243,9 @@ exec_sql_query = (req, template_name, template_context, callback) ->
         # first time through we should have a null value
         # after that we'll either have empty arrays or some data to
         # push onto our result sets
-        if row_data isnt null
-          result_sets.push(row_data)
+        result_sets.push(row_data) unless row_data is null
         row_data = []
-      # collecting our results, yes .4 of tedious allows this to be collected
-      # on the request callback, this just didn't get converted for the new version
-      request.on 'row', (columns) -> log.event "row" ; row_data.push(columns)
+      request.on 'row', (columns) -> row_data.push(columns)
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
@@ -274,9 +263,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       connect_deferred.reject('connection ended prior to sucessful connect')
 
   Q.all([
-    connect_deferred.promise,
-    connect_end_deferred.promise,
-    template_loaded_deferred.promise,
+    connect_deferred.promise, connect_end_deferred.promise,
     request_complete_deferred.promise
   ]).then(
     () -> callback null, result_sets, rendered_template
@@ -287,11 +274,6 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       callback error, result_sets, rendered_template
     catch e
       log.error e
-  ).finally( () ->
-      log_promise 'connect', connect_deferred.promise,
-      log_promise 'connect_end', connect_end_deferred.promise,
-      log_promise 'template_loaded', template_loaded_deferred.promise,
-      log_promise 'request_complete', request_complete_deferred.promise
   ).done()
 
 exec_mysql_query = (req, template_name, template_context, callback) ->
