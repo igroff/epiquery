@@ -245,6 +245,8 @@ exec_sql_query = (req, template_name, template_context, callback) ->
         # push onto our result sets
         result_sets.push(row_data) unless row_data is null
         row_data = []
+      # collect the rows of data, you know... cuz that's what this
+      # whole thing is for
       request.on 'row', (columns) -> row_data.push(columns)
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
