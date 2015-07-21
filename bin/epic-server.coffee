@@ -16,6 +16,7 @@ durations   = require('./utils.coffee')
 durations   = new durations.DurationTracker()
 os          = require 'os'
 cluster     = require 'cluster'
+generic_pool = require 'generic-pool'
 
 config =
   sql:
@@ -57,6 +58,8 @@ config =
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
 
+connection_pools = {}
+
 # yes, this is a global variable we use it to track our requests so we can
 # create unique identifiers per request
 request_counter = 0
@@ -82,12 +85,18 @@ special_characters = {
 get_connection_config = (req, db_type) ->
   conn_header = req.get "X-DB-CONNECTION"
   if conn_header
-    return JSON.parse conn_header
+    req.pool_key = new Buffer(conn_header).toString('base64')
+    req.connection_config = JSON.parse conn_header
+    return req.connection_config
   else
     # can write on POST, all others read only
     if req.method is "POST"
+      req.pool_key = db_type
+      req.connection_config = config[db_type]
       return config[db_type]
     else
+      req.pool_key = "#{db_type}_ro"
+      req.connection_config = config["#{db_type}_ro"]
       return config["#{db_type}_ro"]
 
 # a helper method to handle escaping of values for SQL Server
@@ -211,29 +220,70 @@ promise_to_render_template = (template_name, template_context) ->
       renderer template_content.toString(), template_context
   )
 
+create_mssql_pool = () ->
+  "pants"
+
+create_mysql_pool = () ->
+  "pants"
+
+get_connection = (req) ->
+  pool = connection_pools[req.pool_key]
+  if not pool
+    # create pool
+    pool = new generic_pool.Pool(
+      create: (cb) ->
+        connect_deferred = Q.defer()
+        conn = new tedious.Connection req.connection_config
+        conn.is_good = false
+        conn.release_to_pool = ->
+          conn.reset( () -> pool.release(conn) )
+        conn.on 'errorMessage', (message) ->
+          log.error "On request #{req.path} with error #{JSON.stringify(message)}"
+        conn.on 'connect', (err) ->
+          if err
+            connect_deferred.reject(err)
+            # is_good defaults to false, so we assume bad
+            return cb(err)
+          else
+            connect_deferred.resolve()
+            conn.is_good = true
+            return cb(err, conn)
+        conn.on 'end', () ->
+          # this is silly, but... there's a case where tedious will fail to
+          # connect but not raise a connect(err) event instead going straight to
+          # raising 'end'.  So from the normal processing path, this should be
+          # raised by the close of the connection which is done on the request-complete
+          # trigger and we should then be done anyway so this will simply be redundant
+          log.event 'connect_end'
+          if connect_deferred.promise.isPending()
+            connect_deferred.reject('connection ended prior to sucessful connect')
+            conn.is_good = false
+      validate: (pooled_object) -> pooled_object.is_good
+      destroy: (pooled_object) -> pooled_object.close()
+      max: 10
+    )
+    connection_pools[req.pool_key] = pool
+  deferred = Q.defer()
+  pool.acquire(deferred.makeNodeResolver())
+  return deferred.promise
+  
+
 exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
-  connect_deferred           = Q.defer()
-  connect_end_deferred       = Q.defer()
   request_complete_deferred  = Q.defer()
   rendered_template          = undefined
 
-  conn = new tedious.Connection get_connection_config(req, 'sql')
-  conn.on 'errorMessage', (message) ->
-    log.error "On request #{req.path} with error #{JSON.stringify(message)}"
-  conn.on 'connect', connect_deferred.makeNodeResolver()
-  conn.on 'end', () -> connect_end_deferred.resolve()
-
+  get_connection_config req, 'sql'
   # once we have a connection and our template rendered, then we can continue
-  Q.all([promise_to_render_template(template_name, template_context), connect_deferred.promise]).spread(
+  Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
-    (query) ->
+    (query, connection) ->
       log.debug "executing query:\n #{query}"
       rendered_template = query
       request = new tedious.Request(rendered_template, request_complete_deferred.makeNodeResolver())
       # make sure that no matter how our request-complete event ends, we close the connection
-      request_complete_deferred.promise.finally () -> conn.close()
+      request_complete_deferred.promise.finally () -> connection.release_to_pool()
       request_complete_deferred.promise.then () ->
         result_sets.push(row_data) unless row_data is null
 
@@ -251,32 +301,18 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
-      conn.execSqlBatch request
+      connection.execSqlBatch request
   ).fail (error) -> callback error, result_sets, rendered_template # something in the spread failed
-
-  connect_end_deferred.promise.then () ->
-    # this is silly, but... there's a case where tedious will fail to
-    # connect but not raise a connect(err) event instead going straight to
-    # raising 'end'.  So from the normal processing path, this should be
-    # raised by the close of the connection which is done on the request-complete
-    # trigger and we should then be done anyway so this will simply be redundant
-    log.event 'connect_end'
-    if connect_deferred.promise.isPending()
-      connect_deferred.reject('connection ended prior to sucessful connect')
-
-  Q.all([
-    connect_deferred.promise, connect_end_deferred.promise,
-    request_complete_deferred.promise
-  ]).then(
-    () -> callback null, result_sets, rendered_template
-  ).fail( (error) ->
-    log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
-    log.error error
-    try
+  .done()
+  request_complete_deferred.promise
+  .then(
+    () -> callback null, result_sets, rendered_template)
+  .fail(
+    (error) ->
+      log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
+      log.error error
       callback error, result_sets, rendered_template
-    catch e
-      log.error e
-  ).done()
+  )
 
 exec_mysql_query = (req, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
