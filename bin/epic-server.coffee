@@ -1,8 +1,7 @@
-Promise     = require 'bluebird'
-tedious     = Promise.promisifyAll require 'tedious'
+tedious     = require 'tedious'
 path        = require 'path'
 express     = require 'express'
-fs          = Promise.promisifyAll require 'fs'
+fs          = require 'fs'
 dot         = require 'dot'
 util        = require 'util'
 _           = require 'underscore'
@@ -201,15 +200,17 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
-render_template = (template_name, template_context) ->
+promise_to_render_template = (template_name, template_context) ->
   template_path = path.join(path.normalize(config.template_directory), template_name)
-  fs.readFileAsync(template_path).
-    then((template_content) ->
+  file_read_deferred = Q.defer()
+  fs.readFile(template_path, file_read_deferred.makeNodeResolver())
+  file_read_deferred.promise.then(
+    (template_content) ->
       renderer = get_renderer_for_template template_name
       log.debug "template context: #{JSON.stringify(template_context)}"
       log.debug "raw template: #{template_content}"
       renderer template_content.toString(), template_context
-    )
+  )
 
 exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
@@ -226,7 +227,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   conn.on 'end', () -> connect_end_deferred.resolve()
 
   # once we have a connection and our template rendered, then we can continue
-  Q.all([render_template(template_name, template_context), connect_deferred.promise]).spread(
+  Q.all([promise_to_render_template(template_name, template_context), connect_deferred.promise]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
     (query) ->
       log.debug "executing query:\n #{query}"
