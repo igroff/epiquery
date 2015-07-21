@@ -17,7 +17,6 @@ durations   = new durations.DurationTracker()
 os          = require 'os'
 cluster     = require 'cluster'
 
-
 config =
   sql:
     userName: process.env.EPIQUERY_SQL_USER
