@@ -240,6 +240,7 @@ get_connection = (req) ->
         conn.on 'errorMessage', (message) ->
           log.error "On request #{req.path} with error #{JSON.stringify(message)}"
         conn.on 'connect', (err) ->
+          log.event "tedious connect"
           if err
             connect_deferred.reject(err)
             # is_good defaults to false, so we assume bad
@@ -247,14 +248,14 @@ get_connection = (req) ->
           else
             connect_deferred.resolve()
             conn.is_good = true
-            return cb(err, conn)
+            return cb(null, conn)
         conn.on 'end', () ->
           # this is silly, but... there's a case where tedious will fail to
           # connect but not raise a connect(err) event instead going straight to
           # raising 'end'.  So from the normal processing path, this should be
           # raised by the close of the connection which is done on the request-complete
           # trigger and we should then be done anyway so this will simply be redundant
-          log.event 'connect_end'
+          log.event "tedious connect end"
           if connect_deferred.promise.isPending()
             connect_deferred.reject('connection ended prior to sucessful connect')
             conn.is_good = false
@@ -278,15 +279,13 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   # once we have a connection and our template rendered, then we can continue
   Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
-    (query, connection) ->
-      log.debug "executing query:\n #{query}"
+    ((query, connection) ->
+      # capturing this so we can hand it back in the event of an error
       rendered_template = query
-      request = new tedious.Request(rendered_template, request_complete_deferred.makeNodeResolver())
+      log.debug "executing query:\n #{query}"
+      request = new tedious.Request(query, request_complete_deferred.makeNodeResolver())
       # make sure that no matter how our request-complete event ends, we close the connection
       request_complete_deferred.promise.finally () -> connection.release_to_pool()
-      request_complete_deferred.promise.then () ->
-        result_sets.push(row_data) unless row_data is null
-
       # we use this event to split up multipe result sets as each result set
       # is preceeded by a columnMetadata event
       request.on 'columnMetadata', () ->
@@ -301,17 +300,20 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
-      connection.execSqlBatch request
+      connection.execSqlBatch request)
+    ,((err) -> callback err, [])
   ).fail (error) -> callback error, result_sets, rendered_template # something in the spread failed
   .done()
+
   request_complete_deferred.promise
   .then(
-    () -> callback null, result_sets, rendered_template)
-  .fail(
-    (error) ->
-      log.error "raw template: #{template_name}, template context: #{JSON.stringify(template_context)}"
-      log.error error
-      callback error, result_sets, rendered_template
+    (() ->
+      result_sets.push(row_data) unless row_data is null
+      callback(null, result_sets)),
+    ((err) ->
+      log.error("error processing query #{err}")
+      callback(err, result_sets, rendered_template)
+      )
   )
 
 exec_mysql_query = (req, template_name, template_context, callback) ->
