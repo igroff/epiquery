@@ -271,20 +271,25 @@ get_connection = (req) ->
   
 
 exec_sql_query = (req, template_name, template_context, callback) ->
-  result_sets = []
-  row_data = null
-  rendered_template = undefined
 
   get_connection_config req, 'sql'
   # once we have a connection and our template rendered, then we can continue
   Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
     ((query, connection) ->
+      result_sets = []
+      row_data = null
       request_complete_deferred  = Q.defer()
-      # capturing this so we can hand it back in the event of an error
-      rendered_template = query
+      request_complete_callback = (error, row_count) ->
+        if error
+          # in the case of an error, we want some of our context so we 
+          # can give it to the caller, and invalidate our connection
+          request_complete_deferred.reject({error, connection, query})
+        else
+          result_sets.push(row_data) unless row_data is null
+          request_complete_deferred.resolve(result_sets)
       log.debug "executing query:\n #{query}"
-      request = new tedious.Request(query, request_complete_deferred.makeNodeResolver())
+      request = new tedious.Request(query, request_complete_callback)
       # make sure that no matter how our request-complete event ends, we close the connection
       request_complete_deferred.promise.finally () -> connection.release_to_pool()
       # we use this event to split up multipe result sets as each result set
@@ -304,12 +309,11 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       connection.execSqlBatch request
       request_complete_deferred.promise)
   ).then(
-    (() ->
-      result_sets.push(row_data) unless row_data is null
-      callback(null, result_sets)),
-    ((err) ->
-      log.error("error processing query #{err}")
-      callback(err, result_sets, rendered_template)
+    ((result_sets) -> callback(null, result_sets))
+    ,((error) ->
+      log.error("error processing query #{error.error}")
+      error.connection?.is_good = false
+      callback(error.error, [], error.query)
       )
   ).done()
 
