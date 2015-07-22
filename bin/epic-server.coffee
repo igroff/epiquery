@@ -236,6 +236,7 @@ get_connection = (req) ->
         conn = new tedious.Connection req.connection_config
         conn.is_good = false
         conn.release_to_pool = ->
+          log.event 'used pool connection released back to pool'
           conn.reset( () -> pool.release(conn) )
         conn.on 'errorMessage', (message) ->
           log.error "On request #{req.path} with error #{JSON.stringify(message)}"
@@ -272,14 +273,14 @@ get_connection = (req) ->
 exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
-  request_complete_deferred  = Q.defer()
-  rendered_template          = undefined
+  rendered_template = undefined
 
   get_connection_config req, 'sql'
   # once we have a connection and our template rendered, then we can continue
   Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
     ((query, connection) ->
+      request_complete_deferred  = Q.defer()
       # capturing this so we can hand it back in the event of an error
       rendered_template = query
       log.debug "executing query:\n #{query}"
@@ -300,13 +301,9 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       # we're _just_ rendering strings to send to sql server so batch is really
       # what we want here, all that fancy parameterization and 'stuff' is done in
       # the template
-      connection.execSqlBatch request)
-    ,((err) -> callback err, [])
-  ).fail (error) -> callback error, result_sets, rendered_template # something in the spread failed
-  .done()
-
-  request_complete_deferred.promise
-  .then(
+      connection.execSqlBatch request
+      request_complete_deferred.promise)
+  ).then(
     (() ->
       result_sets.push(row_data) unless row_data is null
       callback(null, result_sets)),
@@ -314,7 +311,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       log.error("error processing query #{err}")
       callback(err, result_sets, rendered_template)
       )
-  )
+  ).done()
 
 exec_mysql_query = (req, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
