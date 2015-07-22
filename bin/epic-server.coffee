@@ -241,7 +241,7 @@ get_connection = (req) ->
         conn.on 'errorMessage', (message) ->
           log.error "On request #{req.path} with error #{JSON.stringify(message)}"
         conn.on 'connect', (err) ->
-          log.event "tedious connect"
+          log.event "tedious pooled connect"
           if err
             connect_deferred.reject(err)
             # is_good defaults to false, so we assume bad
@@ -256,7 +256,7 @@ get_connection = (req) ->
           # raising 'end'.  So from the normal processing path, this should be
           # raised by the close of the connection which is done on the request-complete
           # trigger and we should then be done anyway so this will simply be redundant
-          log.event "tedious connect end"
+          log.event "tedious pooled connect end"
           if connect_deferred.promise.isPending()
             connect_deferred.reject('connection ended prior to sucessful connect')
             conn.is_good = false
