@@ -220,7 +220,7 @@ create_mssql_connection_pool = (config) ->
         log.debug 'used pool connection released back to pool'
         conn.reset( () -> pool.release(conn) )
       conn.on 'errorMessage', (message) ->
-        log.error "On request #{ctx.req.path} with error #{JSON.stringify(message)}"
+        log.error "error from tedious #{JSON.stringify(message)}"
       conn.on 'connect', (err) ->
         log.event "tedious pooled connect"
         if err
@@ -302,9 +302,11 @@ execute_query_with_connection = (ctx) ->
     row_data = null
     request_handler = (err, result_count) ->
       if err
+        log.error "tedious request error #{err}"
         ctx.error = err
-        reject ctx.err
+        reject ctx
       else
+        log.debug "tedious request complete"
         ctx.result_sets.push(row_data) unless row_data is null
         resolve ctx
     # capturing this so we can hand it back in the event of an error
@@ -329,11 +331,14 @@ execute_query_with_connection = (ctx) ->
 
 handle_successful_query_execution = (callback) ->
   (ctx) ->
+    ctx.connection.release_to_pool()
     callback(null, ctx.result_sets)
 
 handle_errors_in_query_execution = (callback) ->
   (ctx) ->
-    log.error(ctx.err.stack? || ctx.error)
+    log.error(ctx.error.stack? || ctx.error)
+    ctx.connection.is_good = false
+    ctx.connection.release_to_pool()
     callback(ctx.error, ctx.result_sets, ctx.rendered_template)
     
 
