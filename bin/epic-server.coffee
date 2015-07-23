@@ -220,12 +220,6 @@ promise_to_render_template = (template_name, template_context) ->
       renderer template_content.toString(), template_context
   )
 
-create_mssql_pool = () ->
-  "pants"
-
-create_mysql_pool = () ->
-  "pants"
-
 get_connection = (req) ->
   pool = connection_pools[req.pool_key]
   if not pool
@@ -308,7 +302,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       result_sets.push(row_data) unless row_data is null
       callback(null, result_sets)),
     ((err) ->
-      log.error("error processing query #{err}")
+      log.error("error (#{err}) processing query #{rendered_template}")
       callback(err, result_sets, rendered_template)
       )
   ).done()
