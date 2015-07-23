@@ -59,6 +59,7 @@ config =
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
   max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS || 10
 
+# currently we're only pooling mssql connections, and that's all handled down below
 connection_pools = {}
 
 # yes, this is a global variable we use it to track our requests so we can
@@ -209,8 +210,10 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
+##########################################################
+# <mssql query handling>
 create_mssql_connection_pool = (config) ->
-  new generic_pool.Pool(
+  pool = new generic_pool.Pool(
     create: (cb) ->
       log.debug 'created pooled mssql connection'
       connect_deferred = Q.defer()
@@ -220,7 +223,7 @@ create_mssql_connection_pool = (config) ->
         log.debug 'used pool connection released back to pool'
         conn.reset( () -> pool.release(conn) )
       conn.on 'errorMessage', (message) ->
-        log.error "error from tedious #{JSON.stringify(message)}"
+        log.error "error from tedious connection #{JSON.stringify(message)}"
       conn.on 'connect', (err) ->
         log.event "tedious pooled connect"
         if err
@@ -246,14 +249,12 @@ create_mssql_connection_pool = (config) ->
     max: config.max_pooled_connections
   )
 
-connection_pools =
-  sql: create_mssql_connection_pool(config.sql)
-  sql_ro: create_mssql_connection_pool(config.sql)
-
 create_context_for_request = (req, template_name, template_context, pool_key, connection_config, epi_config) ->
   log.debug "creating context for mssql query processing"
+  rendered_template = undefined
+  result_sets = []
   Promise.resolve(
-    ctx ={req, template_name, template_context, pool_key, connection_config, epi_config }
+    ctx ={req, template_name, template_context, pool_key, connection_config, epi_config, rendered_template, result_sets, connection_pools}
   )
 
 load_template_from_disk = (ctx) ->
@@ -267,9 +268,7 @@ load_template_from_disk = (ctx) ->
         reject ctx
       else
         ctx.template_content = template_content
-        resolve ctx
-    )
-  )
+        resolve ctx))
 
 render_template_with_context = (ctx) ->
   new Promise( (resolve, reject) ->
@@ -278,35 +277,43 @@ render_template_with_context = (ctx) ->
       log.debug "template context: #{JSON.stringify(ctx.template_context)}"
       log.debug "raw template: #{ctx.template_content}"
       resolve ctx
-  )["catch"](
-    (err) ->
-      ctx.error = err
-      Promise.reject ctx
-  )
+  )["catch"]((err) -> ctx.error = err; Promise.reject ctx)
+
+validate_context_property = (property_name) ->
+  (ctx) ->
+    new Promise( (resolve, reject) ->
+      if ctx[property_name]
+        resolve ctx
+      else
+        log.error "missing expected property #{property_name} on context"
+        ctx.error = new Error("missing expected property #{property_name} on context")
+        reject ctx)
+
+ensure_connection_pool_exists = (ctx) ->
+  pool = ctx.connection_pools[ctx.pool_key]
+  if not pool
+    log.debug "creating pool for key #{ctx.pool_key}"
+    ctx.connection_pools[ctx.pool_key] = create_mssql_connection_pool(ctx.req.epi_ctx.connection_config)
+  Promise.resolve ctx
 
 get_connection_for_context = (ctx) ->
   new Promise( (resolve, reject) ->
-    connection_pools[ctx.pool_key].acquire( (err, connection) ->
+    ctx.connection_pools[ctx.pool_key].acquire( (err, connection) ->
       if err
         ctx.error = err
         reject ctx
       else
         ctx.connection = connection
-        resolve ctx
-    )
-  )
-  
+        resolve ctx))
+
 execute_query_with_connection = (ctx) ->
   new Promise( (resolve, reject) ->
-    ctx.result_sets = []
     row_data = null
     request_handler = (err, result_count) ->
       if err
-        log.error "tedious request error #{err}"
         ctx.error = err
         reject ctx
       else
-        log.debug "tedious request complete"
         ctx.result_sets.push(row_data) unless row_data is null
         resolve ctx
     # capturing this so we can hand it back in the event of an error
@@ -336,73 +343,29 @@ handle_successful_query_execution = (callback) ->
 
 handle_errors_in_query_execution = (callback) ->
   (ctx) ->
-    log.error(ctx.error.stack? || ctx.error)
-    ctx.connection.is_good = false
-    ctx.connection.release_to_pool()
+    log.error("error handling query request: ", ctx.error?.stack || ctx.error || ctx)
+    ctx.connection?.is_good = false
+    ctx.connection?.release_to_pool()
     callback(ctx.error, ctx.result_sets, ctx.rendered_template)
     
-
 exec_sql_query = (req, template_name, template_context, callback) ->
-  log.info "new awesome mssql processing pipeline that is totally FRP"
   get_connection_config req, 'sql'
   create_context_for_request(req, template_name, template_context, req.epi_ctx.pool_key, req.epi_ctx.connection_config, config)
   .then( load_template_from_disk )
   .then( render_template_with_context )
+  .then( validate_context_property('rendered_template') )
+  .then( ensure_connection_pool_exists )
   .then( get_connection_for_context )
+  .then( validate_context_property('connection') )
   .then( execute_query_with_connection )
-  .then( handle_successful_query_execution(callback) )["catch"]( handle_errors_in_query_execution(callback) )
+  .then( handle_successful_query_execution(callback)
+  )["catch"]( handle_errors_in_query_execution(callback)
+  )["catch"]( (err) -> log.error("error in error handler", err.stack) )
+# </mssql query handling>
+##########################################################
   
-
-old_shitty_exec_sql_query = (req, template_name, template_context, callback) ->
-  result_sets = []
-  row_data = null
-
-  get_connection_config req, 'sql'
-  # once we have a connection and our template rendered, then we can continue
-  Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
-    # a resolved connect has no arguments so we'll get our template argument first
-    ((query, connection) ->
-      req.epi_ctx.rendered_template = query
-      request_complete_deferred  = Q.defer()
-      # capturing this so we can hand it back in the event of an error
-      log.debug "executing query:\n #{query}"
-      request = new tedious.Request(query, request_complete_deferred.makeNodeResolver())
-      # we use this event to split up multiple result sets as each result set
-      # is preceeded by a columnMetadata event
-      request.on 'columnMetadata', () ->
-        # first time through we should have a null value
-        # after that we'll either have empty arrays or some data to
-        # push onto our result sets
-        result_sets.push(row_data) unless row_data is null
-        row_data = []
-      # collect the rows of data, you know... cuz that's what this
-      # whole thing is for
-      request.on 'row', (columns) -> row_data.push(columns)
-      # we're _just_ rendering strings to send to sql server so batch is really
-      # what we want here, all that fancy parameterization and 'stuff' is done in
-      # the template
-      connection.execSqlBatch request
-      request_complete_deferred.promise)
-  ).then(
-    (() ->
-      result_sets.push(row_data) unless row_data is null
-      callback(null, result_sets)),
-    ((err) ->
-      log.error("error (#{err}) processing query #{req.epi_ctx.rendered_template}")
-      req.epi_ctx.connection?.is_good = false
-      callback(err, result_sets, req.epi_ctx.rendered_template)
-      )
-  )
-  .fail(
-    ((err) ->
-      log.error("error (#{err}) while preparing to exeucte query")
-      req.epi_ctx.connection?.is_good = false
-      callback(err, result_sets)
-      )
-  )
-  .fin( () -> req.epi_ctx.connection?.release_to_pool() )
-  .done()
-
+##########################################################
+# <mysql query handling>
 exec_mysql_query = (req, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
   connect_deferred = Q.defer()
@@ -449,6 +412,8 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
     log_promise 'template_loaded', template_loaded
     log_promise 'request', request_deferred.promise
   ).done()
+# </mysql query handling>
+##########################################################
 
 exec_mdx_query = (req, template_name, template_context, callback) ->
   conf = get_connection_config(req, 'mdx')
