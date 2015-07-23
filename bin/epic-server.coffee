@@ -1,4 +1,3 @@
-first_promise = Promise
 tedious     = require 'tedious'
 path        = require 'path'
 express     = require 'express'
@@ -252,37 +251,32 @@ connection_pools =
   sql_ro: create_mssql_connection_pool(config.sql)
 
 create_context_for_request = (req, template_name, template_context, pool_key, connection_config, epi_config) ->
+  log.debug "creating context for mssql query processing"
   Promise.resolve(
-    log.debug "creating context for mssql query processing"
     ctx ={req, template_name, template_context, pool_key, connection_config, epi_config }
   )
 
 load_template_from_disk = (ctx) ->
   log.debug "preparing to load template from disk"
-  promise = new Promise( (resolve, reject) ->
-    log.info "we will see this"
-    console.log Promise
-    reject new Error("cat pants")
+  new Promise( (resolve, reject) ->
     ctx.template_path = path.join(path.normalize(config.template_directory), ctx.template_name)
-    log.info "but not this"
-    fs.readFile(ctx.template_path, (error, template_contents) ->
+    fs.readFile(ctx.template_path, (err, template_content) ->
       log.info "loading template #{ctx.template_path}"
-      if error
+      if err
         ctx.error = err
         reject ctx
       else
-        ctx.template_contents = template_contents
+        ctx.template_content = template_content
         resolve ctx
     )
-    return
   )
 
 render_template_with_context = (ctx) ->
   new Promise( (resolve, reject) ->
       renderer = get_renderer_for_template ctx.template_name
+      ctx.rendered_template = renderer ctx.template_content.toString(), ctx.template_context
       log.debug "template context: #{JSON.stringify(ctx.template_context)}"
       log.debug "raw template: #{ctx.template_content}"
-      ctx.rendered_template = renderer template_content.toString(), ctx.template_context
       resolve ctx
   )["catch"](
     (err) ->
@@ -309,13 +303,13 @@ execute_query_with_connection = (ctx) ->
     request_handler = (err, result_count) ->
       if err
         ctx.error = err
-        reject ctx
+        reject ctx.err
       else
         ctx.result_sets.push(row_data) unless row_data is null
         resolve ctx
     # capturing this so we can hand it back in the event of an error
-    log.debug "executing query:\n #{ctx.query}"
-    request = new tedious.Request(ctx.query, request_handler)
+    log.debug "executing query:\n #{ctx.rendered_template}"
+    request = new tedious.Request(ctx.rendered_template, request_handler)
     # we use this event to split up multiple result sets as each result set
     # is preceeded by a columnMetadata event
     request.on 'columnMetadata', () ->
@@ -333,18 +327,25 @@ execute_query_with_connection = (ctx) ->
     ctx.connection.execSqlBatch request
   )
 
-handle_successful_query_execution = (ctx) ->
+handle_successful_query_execution = (callback) ->
+  (ctx) ->
+    callback(null, ctx.result_sets)
 
-handle_errors_in_query_execution = (ctx) ->
+handle_errors_in_query_execution = (callback) ->
+  (ctx) ->
+    log.error(ctx.err.stack? || ctx.error)
+    callback(ctx.error, ctx.result_sets, ctx.rendered_template)
+    
 
 exec_sql_query = (req, template_name, template_context, callback) ->
   log.info "new awesome mssql processing pipeline that is totally FRP"
   get_connection_config req, 'sql'
   create_context_for_request(req, template_name, template_context, req.epi_ctx.pool_key, req.epi_ctx.connection_config, config)
-  .then( load_template_from_disk )["catch"]( () -> log.error "%j", arguments )
-  #.then( render_template_with_context )
-  #.then( get_connection_for_context )
-  #.then( execute_query_with_connection )["catch"]( () -> log.error "%j", arguments )
+  .then( load_template_from_disk )
+  .then( render_template_with_context )
+  .then( get_connection_for_context )
+  .then( execute_query_with_connection )
+  .then( handle_successful_query_execution(callback) )["catch"]( handle_errors_in_query_execution(callback) )
   
 
 old_shitty_exec_sql_query = (req, template_name, template_context, callback) ->
