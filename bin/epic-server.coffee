@@ -1,3 +1,4 @@
+first_promise = Promise
 tedious     = require 'tedious'
 path        = require 'path'
 express     = require 'express'
@@ -57,6 +58,7 @@ config =
   http_port: process.env.EPIQUERY_HTTP_PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
+  max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS || 10
 
 connection_pools = {}
 
@@ -85,18 +87,18 @@ special_characters = {
 get_connection_config = (req, db_type) ->
   conn_header = req.get "X-DB-CONNECTION"
   if conn_header
-    req.pool_key = new Buffer(conn_header).toString('base64')
-    req.connection_config = JSON.parse conn_header
-    return req.connection_config
+    req.epi_ctx.pool_key = new Buffer(conn_header).toString('base64')
+    req.epi_ctx.connection_config = JSON.parse conn_header
+    return req.epi_ctx.connection_config
   else
     # can write on POST, all others read only
     if req.method is "POST"
-      req.pool_key = db_type
-      req.connection_config = config[db_type]
+      req.epi_ctx.pool_key = db_type
+      req.epi_ctx.connection_config = config[db_type]
       return config[db_type]
     else
-      req.pool_key = "#{db_type}_ro"
-      req.connection_config = config["#{db_type}_ro"]
+      req.epi_ctx.pool_key = "#{db_type}_ro"
+      req.epi_ctx.connection_config = config["#{db_type}_ro"]
       return config["#{db_type}_ro"]
 
 # a helper method to handle escaping of values for SQL Server
@@ -208,80 +210,158 @@ log_promise = (name, promise) ->
      ,isRejected: promise.isRejected()
     })
 
-promise_to_render_template = (template_name, template_context) ->
-  template_path = path.join(path.normalize(config.template_directory), template_name)
-  file_read_deferred = Q.defer()
-  fs.readFile(template_path, file_read_deferred.makeNodeResolver())
-  file_read_deferred.promise.then(
-    (template_content) ->
-      renderer = get_renderer_for_template template_name
-      log.debug "template context: #{JSON.stringify(template_context)}"
-      log.debug "raw template: #{template_content}"
-      renderer template_content.toString(), template_context
+create_mssql_connection_pool = (config) ->
+  new generic_pool.Pool(
+    create: (cb) ->
+      log.debug 'created pooled mssql connection'
+      connect_deferred = Q.defer()
+      conn = new tedious.Connection config
+      conn.is_good = false
+      conn.release_to_pool = ->
+        log.debug 'used pool connection released back to pool'
+        conn.reset( () -> pool.release(conn) )
+      conn.on 'errorMessage', (message) ->
+        log.error "On request #{ctx.req.path} with error #{JSON.stringify(message)}"
+      conn.on 'connect', (err) ->
+        log.event "tedious pooled connect"
+        if err
+          connect_deferred.reject(err)
+          # is_good defaults to false, so we assume bad
+          return cb(err)
+        else
+          connect_deferred.resolve()
+          conn.is_good = true
+          return cb(null, conn)
+      conn.on 'end', () ->
+        # this is silly, but... there's a case where tedious will fail to
+        # connect but not raise a connect(err) event instead going straight to
+        # raising 'end'.  So from the normal processing path, this should be
+        # raised by the close of the connection which is done on the request-complete
+        # trigger and we should then be done anyway so this will simply be redundant
+        log.event "tedious pooled connect closed (tedious end event)"
+        if connect_deferred.promise.isPending()
+          connect_deferred.reject('connection ended prior to sucessful connect')
+          conn.is_good = false
+    validate: (pooled_object) -> pooled_object.is_good
+    destroy: (pooled_object) -> pooled_object.close()
+    max: config.max_pooled_connections
   )
 
-get_connection = (req) ->
-  pool = connection_pools[req.pool_key]
-  if not pool
-    # create pool
-    pool = new generic_pool.Pool(
-      create: (cb) ->
-        connect_deferred = Q.defer()
-        conn = new tedious.Connection req.connection_config
-        conn.is_good = false
-        conn.release_to_pool = ->
-          log.event 'used pool connection released back to pool'
-          conn.reset( () -> pool.release(conn) )
-        conn.on 'errorMessage', (message) ->
-          log.error "On request #{req.path} with error #{JSON.stringify(message)}"
-        conn.on 'connect', (err) ->
-          log.event "tedious pooled connect"
-          if err
-            connect_deferred.reject(err)
-            # is_good defaults to false, so we assume bad
-            return cb(err)
-          else
-            connect_deferred.resolve()
-            conn.is_good = true
-            return cb(null, conn)
-        conn.on 'end', () ->
-          # this is silly, but... there's a case where tedious will fail to
-          # connect but not raise a connect(err) event instead going straight to
-          # raising 'end'.  So from the normal processing path, this should be
-          # raised by the close of the connection which is done on the request-complete
-          # trigger and we should then be done anyway so this will simply be redundant
-          log.event "tedious pooled connect end"
-          if connect_deferred.promise.isPending()
-            connect_deferred.reject('connection ended prior to sucessful connect')
-            conn.is_good = false
-      validate: (pooled_object) -> pooled_object.is_good
-      destroy: (pooled_object) -> pooled_object.close()
-      max: 10
+connection_pools =
+  sql: create_mssql_connection_pool(config.sql)
+  sql_ro: create_mssql_connection_pool(config.sql)
+
+create_context_for_request = (req, template_name, template_context, pool_key, connection_config, epi_config) ->
+  Promise.resolve(
+    log.debug "creating context for mssql query processing"
+    ctx ={req, template_name, template_context, pool_key, connection_config, epi_config }
+  )
+
+load_template_from_disk = (ctx) ->
+  log.debug "preparing to load template from disk"
+  promise = new Promise( (resolve, reject) ->
+    log.info "we will see this"
+    console.log Promise
+    reject new Error("cat pants")
+    ctx.template_path = path.join(path.normalize(config.template_directory), ctx.template_name)
+    log.info "but not this"
+    fs.readFile(ctx.template_path, (error, template_contents) ->
+      log.info "loading template #{ctx.template_path}"
+      if error
+        ctx.error = err
+        reject ctx
+      else
+        ctx.template_contents = template_contents
+        resolve ctx
     )
-    connection_pools[req.pool_key] = pool
-  deferred = Q.defer()
-  pool.acquire(deferred.makeNodeResolver())
-  return deferred.promise
+    return
+  )
+
+render_template_with_context = (ctx) ->
+  new Promise( (resolve, reject) ->
+      renderer = get_renderer_for_template ctx.template_name
+      log.debug "template context: #{JSON.stringify(ctx.template_context)}"
+      log.debug "raw template: #{ctx.template_content}"
+      ctx.rendered_template = renderer template_content.toString(), ctx.template_context
+      resolve ctx
+  )["catch"](
+    (err) ->
+      ctx.error = err
+      Promise.reject ctx
+  )
+
+get_connection_for_context = (ctx) ->
+  new Promise( (resolve, reject) ->
+    connection_pools[ctx.pool_key].acquire( (err, connection) ->
+      if err
+        ctx.error = err
+        reject ctx
+      else
+        ctx.connection = connection
+        resolve ctx
+    )
+  )
   
+execute_query_with_connection = (ctx) ->
+  new Promise( (resolve, reject) ->
+    ctx.result_sets = []
+    row_data = null
+    request_handler = (err, result_count) ->
+      if err
+        ctx.error = err
+        reject ctx
+      else
+        ctx.result_sets.push(row_data) unless row_data is null
+        resolve ctx
+    # capturing this so we can hand it back in the event of an error
+    log.debug "executing query:\n #{ctx.query}"
+    request = new tedious.Request(ctx.query, request_handler)
+    # we use this event to split up multiple result sets as each result set
+    # is preceeded by a columnMetadata event
+    request.on 'columnMetadata', () ->
+      # first time through we should have a null value
+      # after that we'll either have empty arrays or some data to
+      # push onto our result sets
+      ctx.result_sets.push(row_data) unless row_data is null
+      row_data = []
+    # collect the rows of data, you know... cuz that's what this
+    # whole thing is for
+    request.on 'row', (columns) -> row_data.push(columns)
+    # we're _just_ rendering strings to send to sql server so batch is really
+    # what we want here, all that fancy parameterization and 'stuff' is done in
+    # the template
+    ctx.connection.execSqlBatch request
+  )
+
+handle_successful_query_execution = (ctx) ->
+
+handle_errors_in_query_execution = (ctx) ->
 
 exec_sql_query = (req, template_name, template_context, callback) ->
+  log.info "new awesome mssql processing pipeline that is totally FRP"
+  get_connection_config req, 'sql'
+  create_context_for_request(req, template_name, template_context, req.epi_ctx.pool_key, req.epi_ctx.connection_config, config)
+  .then( load_template_from_disk )["catch"]( () -> log.error "%j", arguments )
+  #.then( render_template_with_context )
+  #.then( get_connection_for_context )
+  #.then( execute_query_with_connection )["catch"]( () -> log.error "%j", arguments )
+  
+
+old_shitty_exec_sql_query = (req, template_name, template_context, callback) ->
   result_sets = []
   row_data = null
-  rendered_template = undefined
 
   get_connection_config req, 'sql'
   # once we have a connection and our template rendered, then we can continue
   Q.all([promise_to_render_template(template_name, template_context), get_connection(req)]).spread(
     # a resolved connect has no arguments so we'll get our template argument first
     ((query, connection) ->
+      req.epi_ctx.rendered_template = query
       request_complete_deferred  = Q.defer()
       # capturing this so we can hand it back in the event of an error
-      rendered_template = query
       log.debug "executing query:\n #{query}"
       request = new tedious.Request(query, request_complete_deferred.makeNodeResolver())
-      # make sure that no matter how our request-complete event ends, we close the connection
-      request_complete_deferred.promise.finally () -> connection.release_to_pool()
-      # we use this event to split up multipe result sets as each result set
+      # we use this event to split up multiple result sets as each result set
       # is preceeded by a columnMetadata event
       request.on 'columnMetadata', () ->
         # first time through we should have a null value
@@ -302,10 +382,20 @@ exec_sql_query = (req, template_name, template_context, callback) ->
       result_sets.push(row_data) unless row_data is null
       callback(null, result_sets)),
     ((err) ->
-      log.error("error (#{err}) processing query #{rendered_template}")
-      callback(err, result_sets, rendered_template)
+      log.error("error (#{err}) processing query #{req.epi_ctx.rendered_template}")
+      req.epi_ctx.connection?.is_good = false
+      callback(err, result_sets, req.epi_ctx.rendered_template)
       )
-  ).done()
+  )
+  .fail(
+    ((err) ->
+      log.error("error (#{err}) while preparing to exeucte query")
+      req.epi_ctx.connection?.is_good = false
+      callback(err, result_sets)
+      )
+  )
+  .fin( () -> req.epi_ctx.connection?.release_to_pool() )
+  .done()
 
 exec_mysql_query = (req, template_name, template_context, callback) ->
   log.debug "exec_mysql_query"
@@ -422,6 +512,11 @@ create_status_path = (template_path) ->
 request_handler = (req, resp) ->
   # combining the body and query so they can be use for the context of the template render
   context = _.extend {}, req.body, req.query, req.headers
+
+  # this is going to be used for a requqest context to simplify matters (greatly)
+  # within the pooled environment of the mssql handling. and is simply a concession
+  # to keeping the changes necessary to pooling only mssql localized
+  req.epi_ctx = {}
 
   log.info "Url: #{req.path}, Context: #{JSON.stringify(context)}"
 
