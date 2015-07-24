@@ -15,14 +15,11 @@
     "underscore": "1.4.4",
     "xmla4js": "git+https://github.com/glg/xmla4js.git"
   },
-  "bin": {
-    "update_repo_dir": "bin/update_or_clone_repo"
-  },
   "engines": {
     "node": "0.12.7"
   },
   "scripts": {
-    "start": "./ar-start ${PORT}"
+    "start": "bin/start ${PORT}"
   },
   "repository": {
     "type": "git",

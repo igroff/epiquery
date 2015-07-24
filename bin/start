@@ -1,40 +1,4 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/setup-environment
-
-
-if [ "$1" != "managed" ]; then
-  # when we're running under a 'managed' environment something other than 
-  # ourselves (forever) is managing the lifecycle of things so we'll leave
-  # it up to that mechanism to handle template updates
-  
-  # if we don't already have our template updater running, we
-  # start it
-  ${PKG_BIN}/forever list | grep `pwd` |  grep epic-run_process_at_interval > /dev/null 2>&1
-  if [ $? != 0 ]; then
-    ${DIR}/update_templates
-  fi
-fi
-
-if [ "$1" == "profile" ]; then
-  ${DIR}/epic-server
-elif [ "$1" == "managed" ]; then
-  exec ${PKG_BIN}/coffee bin/epic-server.coffee $2
-elif [ "$1x" == "x" ]; then
-  ${PKG_BIN}/forever list | grep `pwd` | grep epic-server > /dev/null 2>&1
-  if [ $? == 0 ]; then
-    echo "server already running"
-    exit
-  fi
-  ${PKG_BIN}/forever \
-    start \
-    --append \
-    -o ${ROOT}/var/log/epic-server.out.log \
-    -e ${ROOT}/var/log/epic-server.err.log \
-    --pidFile ${ROOT}/var/run/forever.pid \
-    --watchDirectory ${ROOT}/bin \
-    --watch \
-    -c ${PKG_BIN}/coffee bin/epic-server.coffee
-else
-  "${DIR}/$@"
-fi
+exec $(npm bin)/coffee bin/epic-server.coffee $1
