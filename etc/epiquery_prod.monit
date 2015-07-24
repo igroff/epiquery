@@ -1,6 +1,0 @@
-check process epiquery matching "node /home/glgapp/epiquery/node_modules/.bin/coffee /home/glgapp/epiquery/bin/epic-server"
-  alert igroff@glgroup.com with reminder on 5 cycles
-  if cpu usage > 99% for 2 cycles then exec "/bin/ps aux | /bin/grep 'node /home/glgapp/epiquery/node_modules/.bin/coffee /home/glgapp/epiquery/bin/epic-server' | /bin/grep -v grep | /usr/bin/awk '{ print $2 }' | /usr/bin/xargs kill"
-
-check process epi-forever with pidfile /home/glgapp/epiquery/var/run/forever.pid
-  alert igroff@glgroup
