@@ -1,4 +1,4 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/setup-environment
-exec $(npm bin)/coffee bin/epic-server.coffee $1
+exec $(npm bin)/coffee bin/epic-server.coffee

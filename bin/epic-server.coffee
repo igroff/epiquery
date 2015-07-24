@@ -54,7 +54,7 @@ config =
     url:      process.env.EPIQUERY_MDX_URL
     catalog:  process.env.EPIQUERY_MDX_CATALOG
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
-  http_port: process.env.EPIQUERY_HTTP_PORT
+  http_port: process.env.EPIQUERY_HTTP_PORT || process.env.PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
   max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS || 10
