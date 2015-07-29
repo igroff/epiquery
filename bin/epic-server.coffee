@@ -489,7 +489,7 @@ request_handler = (req, resp) ->
   # to keeping the changes necessary to pooling only mssql localized
   req.epi_ctx = {}
 
-  log.info "Url: #{req.path}, Context: #{JSON.stringify(context)}"
+  log.debug "Url: #{req.path}, Context: #{JSON.stringify(context)}"
 
   isMySQLRequest = false
   isMDXRequest = false
