@@ -25,12 +25,14 @@ config =
     server:   process.env.EPIQUERY_SQL_SERVER
     options:
       port:   process.env.EPIQUERY_SQL_PORT
+      requestTimeout: 30000
   sql_ro:
     userName: process.env.EPIQUERY_SQL_RO_USER
     password: process.env.EPIQUERY_SQL_RO_PASSWORD
     server:   process.env.EPIQUERY_SQL_SERVER
     options:
       port:   process.env.EPIQUERY_SQL_PORT
+      requestTimeout: 30000
   mysql:
     host:     process.env.EPIQUERY_MYSQL_SERVER
     user:     process.env.EPIQUERY_MYSQL_USER
@@ -287,6 +289,8 @@ validate_context_property = (property_name) ->
       else
         log.error "missing expected property #{property_name} on context"
         ctx.error = new Error("missing expected property #{property_name} on context")
+        # req is not serializable
+        log.debug "context: #{JSON.stringify _.omit(ctx, "req")}"
         reject ctx)
 
 ensure_connection_pool_exists = (ctx) ->
