@@ -25,14 +25,14 @@ config =
     server:   process.env.EPIQUERY_SQL_SERVER
     options:
       port:   process.env.EPIQUERY_SQL_PORT
-      requestTimeout: process.env.EPIQUERY_REQUEST_TIMEOUT || 15000
+      requestTimeout: Number(process.env.EPIQUERY_REQUEST_TIMEOUT || 15000)
   sql_ro:
     userName: process.env.EPIQUERY_SQL_RO_USER
     password: process.env.EPIQUERY_SQL_RO_PASSWORD
     server:   process.env.EPIQUERY_SQL_SERVER
     options:
       port:   process.env.EPIQUERY_SQL_PORT
-      requestTimeout: process.env.EPIQUERY_REQUEST_TIMEOUT || 15000
+      requestTimeout: Number(process.env.EPIQUERY_REQUEST_TIMEOUT || 15000)
   mysql:
     host:     process.env.EPIQUERY_MYSQL_SERVER
     user:     process.env.EPIQUERY_MYSQL_USER
