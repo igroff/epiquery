@@ -16,6 +16,7 @@ durations   = require('./utils.coffee')
 durations   = new durations.DurationTracker()
 os          = require 'os'
 cluster     = require 'cluster'
+jwt         = require 'express-jwt'
 
 
 config =
@@ -57,6 +58,7 @@ config =
   http_port: process.env.EPIQUERY_HTTP_PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
+  jwt_secret: process.env.JWT_SECRET
 
 # yes, this is a global variable we use it to track our requests so we can
 # create unique identifiers per request
@@ -394,7 +396,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
     log.error('MDX query failed to load template error=' + error)
     callback error, null
   ).done()
-  
+
 # here we will create a full path to the file that will be used to store any
 # status about a currently executing request so this will return a path that
 # should be unique to a request running in the process handling
@@ -542,6 +544,7 @@ request_helper = (req, resp) ->
 
 app = express()
 app.use express.bodyParser()
+app.use(jwt({secret: config.jwt_secret}).unless({path: ['/diagnostic']}))
 app.get '/stats', (req, resp, next) ->
   stats=
     runningQueries: durations.getRunningItems()
@@ -571,7 +574,7 @@ if cluster.isMaster
   [ fork_worker() for i in [1..config.worker_count] ]
 else
   log.info "worker starting on port #{config.http_port}"
-  # if we don't have a status dir set ( it must exist ) 
+  # if we don't have a status dir set ( it must exist )
   # then we'll drop the status_dir value since we'll later use it as a flag
   # to determine if we shold log status
   if ( !fs.existsSync(config.status_dir) )
