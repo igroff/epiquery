@@ -1,5 +1,10 @@
 #epiquery
 
+## overview
+
+HTTP RESTy service for executing templated queries against data sources.
+
+
 ## I don't care, just tell me how to use the thing
 
    curl [http://query.glgroup.com/test/servername](http://query.glgroup.com/test/servername)
