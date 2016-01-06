@@ -12,8 +12,9 @@ hogan       = require 'hogan.js'
 http        = require 'http'
 xmla        = require 'xmla4js'
 log         = require 'simplog'
-durations   = require('./utils.coffee')
-durations   = new durations.DurationTracker()
+utils       = require('./utils.coffee')
+durations   = new utils.DurationTracker()
+mdxTransform = new utils.MdxTransform()
 os          = require 'os'
 cluster     = require 'cluster'
 generic_pool = require 'generic-pool'
@@ -446,7 +447,11 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
                if(obj == false)
                  output = JSON.stringify({})
                else
-                 output = JSON.stringify(obj)
+                  if template_context.transform 
+                    log.info "transforming mdx using #{template_context.transform}"
+                    output = mdxTransform[template_context.transform](obj)
+                  else
+                    output = JSON.stringify(obj)
                callback null, output
           ).catch( (error) ->
             log.error('MDX query succeeded error parsing response as object (xmlaResponse.fetchAsObject())' + error)
