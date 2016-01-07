@@ -639,7 +639,10 @@ request_helper = (req, resp) ->
   transform_for_request = get_requested_transform(req)
   if req.query['callback']
     resp.respond = (o) ->
-      resp.jsonp.apply(resp, _.toArray(o))
+      # we're putting the object being sent back into an array because the
+      # old code transformed the arguments object to an array ( for some unkown
+      # reason ), and thus the callers depend on this strange behavior
+      resp.jsonp.apply(resp, [transform_for_request(o)])
   else
     resp.respond = (o) ->
       resp.send(transform_for_request(o))
