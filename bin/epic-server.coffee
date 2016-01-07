@@ -56,6 +56,7 @@ config =
     url:      process.env.EPIQUERY_MDX_URL
     catalog:  process.env.EPIQUERY_MDX_CATALOG
   template_directory: process.env.EPIQUERY_TEMPLATE_DIRECTORY
+  response_transform_directory: path.join(process.env.EPIQUERY_TEMPLATE_DIRECTORY, 'response_transforms')
   http_port: process.env.EPIQUERY_HTTP_PORT || process.env.PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
@@ -444,9 +445,9 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
             else
                obj =  xmlaResponse.fetchAsObject()
                if(obj == false)
-                 output = JSON.stringify({})
+                 output = {}
                else
-                 output = JSON.stringify(obj)
+                 output = obj
                callback null, output
           ).catch( (error) ->
             log.error('MDX query succeeded error parsing response as object (xmlaResponse.fetchAsObject())' + error)
@@ -559,11 +560,12 @@ request_handler = (req, resp) ->
     else if isMDXRequest
       log.info "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
+        log.info "rows are " + typeof(rows)
         log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond rows
+          resp.respond JSON.stringify(rows)
     else
       log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
@@ -615,12 +617,33 @@ request_handler = (req, resp) ->
     # normal query path
     run_query req, resp, template_path, context
 
+get_requested_transform = (req) ->
+  # our default transform does nothing
+  transform = (o) -> o
+  # if the requestor asks for a tranform, we'll go ahead and load it
+  if req.query.transform
+    log.debug "loading requested response transform: #{req.query.transform}"
+    try
+      # calculate the path for the transform location, so that we can 
+      # clear the cache, templates are loaded on each execution so the expectation
+      # will be the same for the transforms
+      transform_path = path.join(config.response_transform_directory, req.query.transform)
+      delete(require.cache[transform_path])
+      transform = require(transform_path)
+    catch e
+      log.error "unable to find requested transform: #{req.query.transform}"
+      log.error e.message
+  transform
+
 request_helper = (req, resp) ->
+  transform_for_request = get_requested_transform(req)
   if req.query['callback']
     resp.respond = () ->
+      arguments[0] = transform_for_request(arguments[0])
       resp.jsonp.apply(resp, _.toArray(arguments))
   else
-    resp.respond = resp.send
+    resp.respond = (o) ->
+      resp.send(transform_for_request(o))
   request_handler req, resp
 
 app = express()
