@@ -632,12 +632,20 @@ get_requested_transform = (req) ->
       delete(require.cache[transform_path])
       transform = require(transform_path)
     catch e
-      log.error "unable to find requested transform: #{req.query.transform}"
+      log.error "error loading transform: #{req.query.transform}"
       log.error e.message
   transform
 
 request_helper = (req, resp) ->
-  transform_for_request = get_requested_transform(req)
+  create_transformer = (req) ->
+    transform_function = get_requested_transform(req)
+    transformer = (o) ->
+      try
+        return transform_function(o)
+      catch e
+        log.error "error running transform function #{e.message}"
+        log.error e.stack
+  transform_for_request = create_transformer(req)
   if req.query['callback']
     resp.respond = (o) ->
       resp.jsonp(transform_for_request(o))
