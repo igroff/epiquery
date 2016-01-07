@@ -638,9 +638,8 @@ get_requested_transform = (req) ->
 request_helper = (req, resp) ->
   transform_for_request = get_requested_transform(req)
   if req.query['callback']
-    resp.respond = () ->
-      arguments[0] = transform_for_request(arguments[0])
-      resp.jsonp.apply(resp, _.toArray(arguments))
+    resp.respond = (o) ->
+      resp.jsonp.apply(resp, _.toArray(o))
   else
     resp.respond = (o) ->
       resp.send(transform_for_request(o))
