@@ -443,7 +443,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
                log.error('MDX query succeeded '+ template_name + ' but response from xmlarequest is undefined')
                callback 'ERROR:  MDX query succeeded '+ template_name + ' but response from xmlarequest is undefined', null
             else
-               obj =  xmlaResponse.fetchAsObject()
+               obj = xmlaResponse.fetchAsObject()
                if(obj == false)
                  output = {}
                else
@@ -560,12 +560,11 @@ request_handler = (req, resp) ->
     else if isMDXRequest
       log.info "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
-        log.info "rows are " + typeof(rows)
         log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond JSON.stringify(rows)
+          resp.respond rows
     else
       log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
@@ -622,12 +621,14 @@ get_requested_transform = (req) ->
   transform = (o) -> o
   # if the requestor asks for a tranform, we'll go ahead and load it
   if req.query.transform
-    log.debug "loading requested response transform: #{req.query.transform}"
+    transform_name = req.query.transform
+    log.debug "loading requested response transform: #{transform_name}"
     try
       # calculate the path for the transform location, so that we can 
       # clear the cache, templates are loaded on each execution so the expectation
       # will be the same for the transforms
-      transform_path = path.join(config.response_transform_directory, req.query.transform)
+      transform_path = path.join(config.response_transform_directory, transform_name)
+      log.debug "full path to transform: #{transform_path}"
       delete(require.cache[transform_path])
       transform = require(transform_path)
     catch e
