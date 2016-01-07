@@ -643,8 +643,12 @@ request_helper = (req, resp) ->
       try
         return transform_function(o)
       catch e
-        log.error "error running transform function #{e.message}"
+        log.error "error running transform function: #{e.message}"
         log.error e.stack
+        response =
+          status: "error"
+          message:"Transform Error: #{e.message}"
+          transform: req.query.transform
   transform_for_request = create_transformer(req)
   if req.query['callback']
     resp.respond = (o) ->
