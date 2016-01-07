@@ -1,0 +1,5 @@
+{
+  "status": "error",
+  "message": "Transform Error: I don't return anything, becaues I'm totally broken",
+  "transform": "test/raises"
+}
