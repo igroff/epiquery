@@ -470,16 +470,16 @@ The values for the individual cells--the intersections of the columns and rows--
 #### Response Transformations
 
 Response transforms are created by placing a node module (a file) in the 
-`resopnse_transforms` directory of the template repository. The file needs
-be able to successfully loaded via a call to `require`, and should export
-a single function which will be passed the object that would normally be
-returned in the response. Which is to say, if the epiquery code looks like
-the following WITHOUT a response filter
+`resopnse_transforms` directory of the template repository. Epiquery will
+load the file via `require`. The file should export a single function.
+Epiquery will pass that function the response object.
+
+For example, with no filter:
 
     var o = run_the_query(); 
     respond_with_string(JSON.stringify(o));
 
-It will behave as this WITH a response filter
+With a filter:
 
     var o = run_the_query(); 
     o = response_filter(o);
@@ -489,10 +489,9 @@ Transforms can be written either in javascript or coffeescript, in the case of
 a coffescript based transform the file must end in '.coffee', while javascript
 files can end in '.js' or have no extension (theory: convenience).
 
-Transform modules must export a single function that will be given the response
-object (prior to JSON serialization) as shown above, the transform function
-must return something for epiquery to respond with. Theoretically this returned
-value will be derived from the input data, but that's up to the transform author.
+A transform module must export a single function. The function will be given the
+response object and may return anything as output, including an object not related
+to the input. epiquery will call `JSON.stringify` on the output and return it as the response.
 
 Here's a simple example of a transform that doesn't change the response but logs 
 it so you can check it out. This file would be put in 
