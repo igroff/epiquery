@@ -2,7 +2,7 @@
 
 ## What's new?
 
-* [Response Transformations](#ms-sql)
+* [Response Transformations](#response-transformations)
  
 
 ## I don't care, just tell me how to use the thing
@@ -470,6 +470,6 @@ The values for the individual cells--the intersections of the columns and rows--
     },
     ETC.
 
-#### Transformations
+#### Response Transformations
 
 This is some stuff, why isn't it linking
