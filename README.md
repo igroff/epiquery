@@ -508,7 +508,7 @@ it so you can check it out. This file would be put in
     module.exports = logit
 
 You can invoke this transform by adding a querystring paramater called `transform`
-with the path to the file relative to the `<template repo>/response_transform` 
+with the path of the file relative to the `<template repo>/response_transform` 
 directory.
 
     curl 'http://localhost:9090/test/multiple_rows_multiple_results.mustache?transform=log'
