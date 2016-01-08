@@ -470,7 +470,7 @@ The values for the individual cells--the intersections of the columns and rows--
 #### Response Transformations
 
 Response transforms are created by placing a node module (a file) in the 
-`resopnse_transforms` directory of the template repository. Epiquery will
+`response_transforms` directory of the template repository. Epiquery will
 load the file via `require`. The file should export a single function.
 Epiquery will pass that function the response object.
 
