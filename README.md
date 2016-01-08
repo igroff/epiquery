@@ -2,7 +2,7 @@
 
 ## What's new?
 
-* [Response Transformations](#mysql)
+* [Response Transformations](#ms-sql)
  
 
 ## I don't care, just tell me how to use the thing
@@ -469,3 +469,7 @@ The values for the individual cells--the intersections of the columns and rows--
       "ordinal": 4
     },
     ETC.
+
+#### Transformations
+
+This is some stuff, why isn't it linking
