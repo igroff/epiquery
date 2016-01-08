@@ -2,12 +2,9 @@
 
 ## What's new?
 
-* [Response Transformations](#response-transformations)
+* [Response Transformations](#response-transformations) - Now you can
+  manipulate the response that epiquery will return!
  
-
-## I don't care, just tell me how to use the thing
-
-   curl [http://query.glgroup.com/test/servername](http://query.glgroup.com/test/servername)
 
 ## Important things to remember
 
@@ -472,4 +469,74 @@ The values for the individual cells--the intersections of the columns and rows--
 
 #### Response Transformations
 
-This is some stuff, why isn't it linking
+Response transforms are created by placing a node module (a file) in the 
+`resopnse_transforms` directory of the template repository. The file needs
+be able to successfully loaded via a call to `require`, and should export
+a single function which will be passed the object that would normally be
+returned in the response. Which is to say, if the epiquery code looks like
+the following WITHOUT a response filter
+
+    var o = run_the_query(); 
+    respond_with_string(JSON.stringify(o));
+
+It will behave as this WITH a response filter
+
+    var o = run_the_query(); 
+    o = response_filter(o);
+    respond_with_string(JSON.stringify(o));
+
+Transforms can be written either in javascript or coffeescript, in the case of
+a coffescript based transform the file must end in '.coffee', while javascript
+files can end in '.js' or have no extension (theory: convenience).
+
+Transform modules must export a single function that will be given the response
+object (prior to JSON serialization) as shown above, the transform function
+must return something for epiquery to respond with. Theoretically this returned
+value will be derived from the input data, but that's up to the transform author.
+
+Here's a simple example of a transform that doesn't change the response but logs 
+it so you can check it out. This file would be put in 
+`<template repo>/response_transform/log`.
+
+    function logit(o){
+      console.log("log filter was run number 4");
+      console.log("*************************************************************");
+      console.log(JSON.stringify(o, null, 2));
+      console.log("*************************************************************");
+      return o
+    }
+    module.exports = logit
+
+You can invoke this transform by adding a querystring paramater called `transform`
+with the path to the file relative to the `<template repo>/response_transform` 
+directory.
+
+    curl 'http://localhost:9090/test/multiple_rows_multiple_results.mustache?transform=log'
+
+The result would be that you find the following in the stdout of the epiquery server
+
+    log filter was run number 4
+    *************************************************************
+    [
+      [
+        {
+          "id": 1,
+          "name": "pants"
+        },
+        {
+          "id": 2,
+          "name": "pants"
+        }
+      ],
+      [
+        {
+          "id": 1,
+          "name": "pants2"
+        },
+        {
+          "id": 2,
+          "name": "pants2"
+        }
+      ]
+    ]
+    *************************************************************
