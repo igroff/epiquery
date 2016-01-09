@@ -476,12 +476,12 @@ Epiquery will pass that function the response object.
 
 For example, with no filter:
 
-    var o = run_the_query(); 
+    var o = run_the_query();
     respond_with_string(JSON.stringify(o));
 
 With a filter:
 
-    var o = run_the_query(); 
+    var o = run_the_query();
     o = response_filter(o);
     respond_with_string(JSON.stringify(o));
 
