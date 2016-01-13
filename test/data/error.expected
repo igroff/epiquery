@@ -1,4 +1,5 @@
 {
   "status": "error",
-  "message": "Incorrect syntax near the keyword 'from'."
+  "message": "Incorrect syntax near the keyword 'from'.",
+  "rendered_template": "select top 1 from superpants\n"
 }
