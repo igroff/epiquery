@@ -1,6 +1,0 @@
-#! /usr/bin/env bash
-echo 'Pre-install'
-if [ -d templates ]; then
-  rm -rf ./templates
-fi
-git clone ${EPIQUERY_TEMPLATE_ORIGIN_URL} templates

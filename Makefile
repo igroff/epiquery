@@ -16,6 +16,7 @@ stop: setup
 test: setup
 	cd ./test && ./run_old.sh
 	./test/run.sh
+	difftest run
 
 setup: var/log node_modules var/run environment
 	echo "setup complete"

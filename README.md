@@ -1,22 +1,20 @@
 #epiquery
- 
 
 ## overview
 
 HTTP RESTy service for executing templated queries against data sources.
 
+## What's new?
 
-## I don't care, just tell me how to use the thing
-
-   curl [http://query.glgroup.com/test/servername](http://query.glgroup.com/test/servername)
+* [Response Transformations](#response-transformations) - Now you can
+  manipulate the response that epiquery will return!
+ 
 
 ## Important things to remember
 
 * If you're trying to get this to run locally, you probably shouldn't be.
 If you're still trying you probably want to see the Environment
 ( Configuration ) section at the bottom.
-* The query service is available externally, currently it's protected by
-the Auth Proxy and you'll need to know the password to connect.
 * You can cause the service to connect to an arbitrary MySQL or MSSQ
 database by combining an existing template with the X-DB-CONNECTION
 header. See the DB Override section for more details.
@@ -470,3 +468,76 @@ The values for the individual cells--the intersections of the columns and rows--
       "ordinal": 4
     },
     ETC.
+
+#### Response Transformations
+
+Response transforms are created by placing a node module (a file) in the 
+`response_transforms` directory of the template repository. Epiquery will
+load the file via `require`. The file should export a single function.
+Epiquery will pass that function the response object.
+
+For example, with no filter:
+
+    var o = run_the_query();
+    respond_with_string(JSON.stringify(o));
+
+With a filter:
+
+    var o = run_the_query();
+    o = response_filter(o);
+    respond_with_string(JSON.stringify(o));
+
+Transforms can be written either in javascript or coffeescript, in the case of
+a coffescript based transform the file must end in '.coffee', while javascript
+files can end in '.js' or have no extension (theory: convenience).
+
+A transform module must export a single function. The function will be given the
+response object and may return anything as output, including an object not related
+to the input. epiquery will call `JSON.stringify` on the output and return it as the response.
+
+Here's a simple example of a transform that doesn't change the response but logs 
+it so you can check it out. This file would be put in 
+`<template repo>/response_transform/log`.
+
+    function logit(o){
+      console.log("log filter was run number 4");
+      console.log("*************************************************************");
+      console.log(JSON.stringify(o, null, 2));
+      console.log("*************************************************************");
+      return o
+    }
+    module.exports = logit
+
+You can invoke this transform by adding a querystring paramater called `transform`
+with the path of the file relative to the `<template repo>/response_transform` 
+directory.
+
+    curl 'http://localhost:9090/test/multiple_rows_multiple_results.mustache?transform=log'
+
+The result would be that you find the following in the stdout of the epiquery server
+
+    log filter was run number 4
+    *************************************************************
+    [
+      [
+        {
+          "id": 1,
+          "name": "pants"
+        },
+        {
+          "id": 2,
+          "name": "pants"
+        }
+      ],
+      [
+        {
+          "id": 1,
+          "name": "pants2"
+        },
+        {
+          "id": 2,
+          "name": "pants2"
+        }
+      ]
+    ]
+    *************************************************************

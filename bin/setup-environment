@@ -1,33 +1,10 @@
 #! /usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT=$PWD
-NEEDED_NODE_VERSION='v0.10.26'
-source "${DIR}/.nvm.sh"
-which node > /dev/null 2>&1
-if [ $? == 0 ]; then
-  CURRENT_NODE_VERSION=`node --version`
-  HAS_NEEDED_VERSION=`nvm ls | grep ${NEEDED_NODE_VERSION}`
-fi
 
 if [ -e ~/.epiquery_env ]; then
   source ~/.epiquery_env
 fi
-
-if [ -z "${HAS_NEEDED_VERSION}" ]; then
-  echo 'get the right version of node going'
-  nvm install $NEEDED_NODE_VERSION
-  nvm alias default $NEEDED_NODE_VERSION
-  npm rebuild
-fi
-
-PKG_BIN=`npm bin`
-
-VS=`nvm use $NEEDED_NODE_VERSION`
-if [ "${VS}" != "Now using node ${NEEDED_NODE_VERSION}" ]; then
-  echo "unable to set required node version ${NEEDED_NODE_VERSION}"
-  exit 1
-fi
-export ENVIRONMENT_SHA=`git log -1 --oneline | awk '{ print $1 }'`
 
 # we'll default our templates directory to the ./templates in the directory 
 # from which we're running
@@ -46,11 +23,3 @@ if [ -z "${EPIQUERY_TEMPLATE_REPOSITORY}" ]; then
   fi
   export EPIQUERY_TEMPLATE_REPOSITORY=`echo ${ORIGIN} | sed -e s[${ORIG_BASENAME}[${TEMPLATE_BASENAME}[g`
 fi
-
-set_config(){
-  if [ -z "${2}" ]; then
-    echo Missing config value from environment for ${1}
-    exit 2
-  fi
-  npm config set $1 $2
-}
