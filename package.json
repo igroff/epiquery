@@ -1,50 +1,36 @@
 {
   "name": "epiquery",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "run templated queries from the http's",
-  "main": "./bin/epic-server",
   "devDependencies": {
-    "optimist": "0.6.0",
-    "socket.io-client": "0.9.16"
+    "optimist": "0.6.0"
   },
   "dependencies": {
-    "socket.io": "0.9.13",
-    "coffee-script": "1.6.2",
-    "express": "3.1.0",
+    "coffee-script": "1.9.3",
     "docopt": "0.4.0",
-    "forever": "0.10.0",
-    "underscore": "1.4.4",
-    "tedious": "git+https://github.com/intimonkey/tedious.git",
     "dot": "1.0.1",
+    "express": "3.1.0",
     "hogan.js": "2.0.0",
-    "handlebars": "1.0.10",
-    "q": "0.9.2",
     "mysql": "2.0.0-alpha7",
-    "xmla4js": "git+https://github.com/glg/xmla4js.git",
-    "simplog": "0.0.6"
+    "q": "0.9.2",
+    "simplog": "0.0.6",
+    "tedious": "1.11.0",
+    "tedious-connection-pool": "0.3.5",
+    "underscore": "1.4.4",
+    "xmla4js": "git+https://github.com/glg/xmla4js.git"
   },
   "bin": {
     "update_repo_dir": "bin/update_or_clone_repo"
   },
-  "config": {
-    "db_port": "",
-    "db_host": "",
-    "db_user": "",
-    "db_password": "",
-    "template_directory": "",
-    "template_repository": "",
-    "template_update_interval": "",
-    "http_port": "8080"
-  },
-  "engine": {
-    "node": "0.10.3"
+  "engines": {
+    "node": "0.12.7"
   },
   "scripts": {
-    "start": "./pre-install && ./ar-start ${PORT}"
+    "start": "./ar-start ${PORT}"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/intimonkey/epic-query.git"
+    "url": "git://github.com/igroff/epiquery.git"
   },
   "os": [
     "!win32"
