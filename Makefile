@@ -13,26 +13,19 @@ profile: setup
 	./bin/start profile
 stop: setup
 	./bin/stop
-
 test/templates:
 	cd test
 	git clone https://github.com/igroff/epiquery-templates.git templates
-
 test: setup
 	cd ./test && ./run_old.sh
 	./test/run.sh
 	difftest run
 
-setup: var/log node_modules var/run environment
+setup: var/log node_modules var/run environment test/templates
 	echo "setup complete"
 
 environment:
 	./bin/setup-environment
-
-nuke:
-	@rm -rf var/log
-	@rm -rf node_modules/
-	@rm -rf var/run
 
 clean:
 	@rm -rf node_modules/
