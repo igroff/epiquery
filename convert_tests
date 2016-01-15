@@ -6,5 +6,6 @@ for test in $(grep do_post test/run_old.sh | cut -d ' ' -f 2- | grep -v do_post\
   echo '#! /usr/bin/env bash' > difftest/tests/${TEST_NAME}
   echo curl -s "\"http://localhost:9090/test/$test\""  >> difftest/tests/${TEST_NAME}
   chmod +x difftest/tests/${TEST_NAME}
+  git add difftest/tests/${TEST_NAME}
   git mv test/data/${TEST_NAME}.expected difftest/expected/${TEST_NAME}
 done
