@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl -s "http://localhost:9090/test/array_in_context.mustache" --data-binary '{"items":[{"name":"one"},{"name":"two"}]}' -H "Content-Type:application/json"

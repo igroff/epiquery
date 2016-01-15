@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl -s "http://localhost:9090/test/do_stuff_but_return_no_results"
