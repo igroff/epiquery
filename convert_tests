@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 IFS=$'\n'
-for test in $(grep run_test test/run_old.sh | cut -d ' ' -f 2- | grep -v run_test\( | sed -e "s['[[g")
+for test in $(grep do_post test/run_old.sh | cut -d ' ' -f 2- | grep -v run_test\( )
  do
   TEST_NAME=$(echo $test | cut -d '?' -f 1 | cut -d ' ' -f 1)
   echo '#! /usr/bin/env bash' > difftest/tests/${TEST_NAME}
