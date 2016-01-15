@@ -13,6 +13,11 @@ profile: setup
 	./bin/start profile
 stop: setup
 	./bin/stop
+
+test/templates:
+	cd test
+	git clone https://github.com/igroff/epiquery-templates.git templates
+
 test: setup
 	cd ./test && ./run_old.sh
 	./test/run.sh
