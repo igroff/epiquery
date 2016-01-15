@@ -1,0 +1,10 @@
+#! /usr/bin/env bash
+IFS=$'\n'
+for test in $(grep run_test test/run_old.sh | cut -d ' ' -f 2- | grep -v run_test\( | sed -e "s['[[g")
+ do
+  TEST_NAME=$(echo $test | cut -d '?' -f 1 | cut -d ' ' -f 1)
+  echo '#! /usr/bin/env bash' > difftest/tests/${TEST_NAME}
+  echo curl -s "\"http://localhost:9090/$test\""  >> difftest/tests/${TEST_NAME}
+  chmod +x difftest/tests/${TEST_NAME}
+  git mv test/data/${TEST_NAME}.expected difftest/expected
+done
