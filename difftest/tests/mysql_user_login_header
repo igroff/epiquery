@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl -s "http://localhost:9090/test/mysql_username" -H X-DB-CONNECTION: '{"host":"localhost", "user":"epiquery"}'
