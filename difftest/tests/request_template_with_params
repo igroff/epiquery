@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl http://localhost:9090/ -s --data "__template=select 'Hello, {{name}}' [message]" --data 'name=ian'

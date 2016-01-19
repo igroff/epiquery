@@ -92,6 +92,10 @@ get_connection_config = (req, db_type) ->
   if conn_header
     req.epi_ctx.pool_key = new Buffer(conn_header).toString('base64')
     req.epi_ctx.connection_config = JSON.parse conn_header
+    # chances are you're not setting this, and it's required because we
+    # add some 'stuff' to the query for you
+    req.epi_ctx.connection_config.multipleStatements = true
+    log.debug "using connection header, host: #{req.epi_ctx.connection_config.host}, user: #{req.epi_ctx.connection_config.user}"
     return req.epi_ctx.connection_config
   else
     # can write on POST, all others read only

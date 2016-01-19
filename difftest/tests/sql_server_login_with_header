@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl http://localhost:9090 -s --data '__template=select suser_name()' -H 'X-DB-CONNECTION: {"userName":"vagrant", "password":"vagrant", "server":"localhost"}'

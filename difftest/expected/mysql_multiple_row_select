@@ -4,6 +4,15 @@
     "affectedRows": 0,
     "insertId": 0,
     "serverStatus": 10,
+    "warningCount": 0,
+    "message": "",
+    "changedRows": 0
+  },
+  {
+    "fieldCount": 0,
+    "affectedRows": 0,
+    "insertId": 0,
+    "serverStatus": 10,
     "warningCount": 1,
     "message": "",
     "changedRows": 0

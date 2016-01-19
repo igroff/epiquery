@@ -20,7 +20,7 @@
   },
   "scripts": {
     "start": "bin/start ${PORT}",
-    "watch": "./node_modules/.bin/supervisor --watch bin/ --extensions .coffee --exec $(which bash) bin/start"
+    "watch": "DEBUG=true ./node_modules/.bin/supervisor --watch bin/ --extensions .coffee --exec $(which bash) bin/start"
   },
   "repository": {
     "type": "git",

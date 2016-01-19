@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s "http://localhost:9090/test/app_json_mysql_hello.mustache --data-binary {"name":"ian"} -H Content-Type:application/json"
+curl -s "http://localhost:9090/test/app_json_mysql_hello.mustache" --data-binary '{"name":"ian"}' -H 'Content-Type:application/json'
