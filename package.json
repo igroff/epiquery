@@ -8,11 +8,14 @@
     "express": "3.1.0",
     "generic-pool": "2.2.0",
     "hogan.js": "2.0.0",
+    "lodash": "4.0.0",
+    "moment": "2.11.1",
     "mysql": "2.0.0-alpha7",
     "q": "0.9.2",
     "simplog": "0.0.6",
     "tedious": "1.11.0",
     "underscore": "1.4.4",
+    "underscore.string": "3.2.3",
     "xmla4js": "git+https://github.com/glg/xmla4js.git"
   },
   "engines": {
