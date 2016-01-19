@@ -19,8 +19,8 @@
     "node": "0.12.7"
   },
   "scripts": {
-    "start": "bin/start ${PORT}",
-    "watch": "DEBUG=true ./node_modules/.bin/supervisor --watch lib/ --extensions .coffee --exec $(which bash) bin/start"
+    "start": "make start",
+    "watch": "make watch"
   },
   "repository": {
     "type": "git",
