@@ -1,5 +1,5 @@
 #! /usr/bin/env ./node_modules/.bin/coffee
-DurationTracker = require('../../bin/utils.coffee').DurationTracker
+DurationTracker = require('../../lib/utils.coffee').DurationTracker
 dur = new DurationTracker()
 
 firstOne = dur.start "trackThis"
