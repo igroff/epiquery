@@ -1,4 +1,0 @@
-change sha load so it is picked up on forever restart of the service
-return a header indicating the version of the template repo
-allow template repo browsing
-run durtest
