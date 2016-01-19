@@ -19,7 +19,8 @@
     "node": "0.12.7"
   },
   "scripts": {
-    "start": "bin/start ${PORT}"
+    "start": "bin/start ${PORT}",
+    "watch": "./node_modules/.bin/supervisor --watch bin/ --extensions .coffee --exec $(which bash) bin/start"
   },
   "repository": {
     "type": "git",
@@ -27,5 +28,8 @@
   },
   "os": [
     "!win32"
-  ]
+  ],
+  "devDependencies": {
+    "supervisor": "0.9.1"
+  }
 }
