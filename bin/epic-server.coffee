@@ -265,7 +265,7 @@ load_template_from_disk = (ctx) ->
   new Promise( (resolve, reject) ->
     ctx.template_path = path.join(path.normalize(config.template_directory), ctx.template_name)
     fs.readFile(ctx.template_path, (err, template_content) ->
-      log.info "loading template #{ctx.template_path}"
+      log.debug "loading template #{ctx.template_path}"
       if err
         ctx.error = err
         reject ctx
@@ -525,7 +525,7 @@ request_handler = (req, resp) ->
     resp.on 'close', remove_status_data
     resp.on 'finish', remove_status_data
 
-  log.info "raw template path: #{template_path}"
+  log.debug "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
@@ -550,28 +550,26 @@ request_handler = (req, resp) ->
 
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
-      log.info "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, type: mysql"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows
     else if isMDXRequest
-      log.info "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, type: mdx"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows
     else
-      log.info "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows, rendered_template) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        duration = durationTracker.stop()
         if error
+          log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{duration}ms, type: T-SQL, #{error}"
           resp.respond create_error_response(error, resp, template_path, context, rendered_template)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
@@ -584,7 +582,6 @@ request_handler = (req, resp) ->
               result.push _.map result_set, (columns) ->
                 _.object _.map columns, (column) ->
                   [column.metadata.colName, column.value]
-            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
 
           else
             log.debug "1 result set returned"
@@ -594,7 +591,7 @@ request_handler = (req, resp) ->
             result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
-            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
+          log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{duration}ms, type: T-SQL, rows: #{row_count}"
           resp.respond result
 
   # check to see if we're running a 'development' request which is a
