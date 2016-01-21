@@ -269,7 +269,7 @@ load_template_from_disk = (ctx) ->
   new Promise( (resolve, reject) ->
     ctx.template_path = path.join(path.normalize(config.template_directory), ctx.template_name)
     fs.readFile(ctx.template_path, (err, template_content) ->
-      log.info "loading template #{ctx.template_path}"
+      log.debug "loading template #{ctx.template_path}"
       if err
         ctx.error = err
         reject ctx
@@ -380,7 +380,7 @@ exec_mysql_query = (req, template_name, template_context, callback) ->
   connect_deferred = Q.defer()
   request_deferred = Q.defer()
 
-  log.info "using template: #{template_name}"
+  log.debug "using template: #{template_name}"
   template_loaded = Q.nfcall(fs.readFile,
     path.join(path.normalize(config.template_directory), template_name),
     {encoding:'utf8'})
@@ -437,7 +437,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
       renderer = get_renderer_for_template template_name
       log.debug "raw template: #{template}"
       rendered_template = renderer template.toString(), template_context
-      log.info "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
+      log.debug "rendered template(type #{typeof rendered_template})\n #{rendered_template}"
       xmlaRequest =
         async: true
         url: conf.url
@@ -529,7 +529,7 @@ request_handler = (req, resp) ->
     resp.on 'close', remove_status_data
     resp.on 'finish', remove_status_data
 
-  log.info "raw template path: #{template_path}"
+  log.debug "raw template path: #{template_path}"
   if template_path.indexOf("mysql") isnt -1
     isMySQLRequest = true
   else if template_path.indexOf("mdx") isnt -1
@@ -554,27 +554,27 @@ request_handler = (req, resp) ->
 
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
-      log.info "processing mysql query"
+      log.debug "processing mysql query"
       exec_mysql_query req, template_path, context, (error, rows) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, type: mysql"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows
     else if isMDXRequest
-      log.info "processing mdx query"
+      log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, type: mdx"
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
           resp.respond rows
     else
-      log.info "processing T-SQL query"
+      log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows, rendered_template) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.debug "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
         if error
           resp.respond create_error_response(error, resp, template_path, context, rendered_template)
         else
@@ -588,7 +588,7 @@ request_handler = (req, resp) ->
               result.push _.map result_set, (columns) ->
                 _.object _.map columns, (column) ->
                   [column.metadata.colName, column.value]
-            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
+            log.debug "#{row_count}(s) rows returned, raw template path: #{template_path}"
 
           else
             log.debug "1 result set returned"
@@ -598,7 +598,7 @@ request_handler = (req, resp) ->
             result = _.map rows[0], (columns) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
-            log.info "#{row_count}(s) rows returned, raw template path: #{template_path}"
+            log.debug "#{row_count}(s) rows returned, raw template path: #{template_path}"
           resp.respond result
 
   # check to see if we're running a 'development' request which is a
@@ -686,7 +686,7 @@ if cluster.isMaster
       if signal isnt "SIGTERM"
         fork_worker()
 
-  log.info "Starting epi server on port: #{config.http_port}"
+  log.debug "Starting epi server on port: #{config.http_port}"
   log.debug "Debug logging enabled"
   log.info durations
   log.info "Configuration: #{JSON.stringify config}"
