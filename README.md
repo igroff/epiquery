@@ -8,10 +8,17 @@ HTTP RESTy service for executing templated queries against data sources.
 
 * [Response Transformations](#response-transformations) - Now you can
   manipulate the response that epiquery will return!
- 
+
+## Installing and Running
+
+    clone the repo
+    cd <newly cloned repo dir>
+    npm install .
+    npm start
 
 ## Important things to remember
 
+* It doesn't run on Windows, don't try.
 * If you're trying to get this to run locally, you probably shouldn't be.
 If you're still trying you probably want to see the Environment
 ( Configuration ) section at the bottom.
