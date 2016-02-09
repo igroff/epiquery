@@ -550,7 +550,8 @@ request_handler = (req, resp) ->
       result.rendered_template = rendered_template
     # try and avoid giving too much away in our error message
     result.message = result.message.replace process.cwd(), ""
-    result
+    response =
+      error: result
 
   run_query = (req, resp, template_path, context) ->
     if isMySQLRequest
@@ -560,7 +561,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond rows
+          resp.respond {rowSets: rows}
     else if isMDXRequest
       log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
@@ -568,7 +569,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond rows
+          resp.respond {rowSets: rows}
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
@@ -599,7 +600,7 @@ request_handler = (req, resp) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
             log.debug "#{row_count}(s) rows returned, raw template path: #{template_path}"
-          resp.respond result
+          resp.respond {rowSets: result}
 
   # check to see if we're running a 'development' request which is a
   # request with a template included within, as opposed to referecing
@@ -621,8 +622,13 @@ request_handler = (req, resp) ->
     run_query req, resp, template_path, context
 
 get_requested_transform = (req) ->
-  # our default transform does nothing
-  transform = (o) -> o
+  # our default transform does nothing but pick off the elements and return only the
+  # error or rowSets data as the historical response expects
+  transform = (o) ->
+    if o.error
+      o.error
+    else
+      o.rowSets
   # if the requestor asks for a tranform, we'll go ahead and load it
   if req.query.transform
     transform_name = req.query.transform
