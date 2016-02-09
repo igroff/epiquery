@@ -561,7 +561,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond {rowSets: rows}
+          resp.respond {rowSets: rows, context:context}
     else if isMDXRequest
       log.debug "processing mdx query"
       exec_mdx_query req, template_path, context, (error, rows) ->
@@ -569,7 +569,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context)
         else
-          resp.respond {rowSets: rows}
+          resp.respond {rowSets: rows, context:context}
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
@@ -600,7 +600,7 @@ request_handler = (req, resp) ->
               _.object _.map columns, (column) ->
                 [column.metadata.colName, column.value]
             log.debug "#{row_count}(s) rows returned, raw template path: #{template_path}"
-          resp.respond {rowSets: result}
+          resp.respond {rowSets: result, context:context}
 
   # check to see if we're running a 'development' request which is a
   # request with a template included within, as opposed to referecing
