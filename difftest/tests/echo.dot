@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s "http://localhost:9090/test/echo.dot?message=pants&dog=blue" --user-agent 'curl/7.30.0'
+curl -s "http://localhost:9090/test/echo_fixed.dot?message=pants&dog=blue" --user-agent 'curl/7.30.0'

@@ -1,5 +1,5 @@
 [
   {
-    "everything": " jwt=header  user-agent=curl/7.37.1  host=localhost:9090  accept=*/* "
+    "result": "header"
   }
 ]

@@ -6,8 +6,8 @@
   ],
   "context": {
     "transform": "test/return_raw_response",
-    "user-agent": "curl/7.37.1",
     "host": "localhost:9090",
+    "user-agent": "curl/7.37.1",
     "accept": "*/*"
   }
 }
