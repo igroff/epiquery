@@ -575,7 +575,7 @@ request_handler = (req, resp) ->
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows, rendered_template) ->
-        log.debug "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
         if error
           resp.respond create_error_response(error, resp, template_path, context, rendered_template)
         else
