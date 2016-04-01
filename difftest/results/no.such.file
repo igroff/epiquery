@@ -1,4 +1,0 @@
-{
-  "status": "error",
-  "message": "ENOENT, open '/difftest/templates/test/no.such.file'"
-}

@@ -1,5 +1,0 @@
-{
-  "status": "error",
-  "message": "String or binary data would be truncated.",
-  "rendered_template": "set ansi_warnings on\n-- pants\ndeclare @pants table (name varchar(2))\n\ninsert into @pants ([name]) values ('something')\n\nselect * from @pants\n"
-}
