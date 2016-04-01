@@ -10,7 +10,7 @@
   },
   [
     {
-      "VARIABLE_NAME": "TX_ISOLATION",
+      "VARIABLE_NAME": "tx_isolation",
       "VARIABLE_VALUE": "READ-UNCOMMITTED"
     }
   ]
