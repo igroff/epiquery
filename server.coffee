@@ -61,6 +61,7 @@ config =
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
   max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS || 10
+  http_timeout_in_seconds: process.env.EPIQUERY_HTTP_REQUEST_TIMEOUT_IN_SECONDS || 120
 
 # currently we're only pooling mssql connections, and that's all handled down below
 connection_pools = {}
@@ -229,6 +230,10 @@ create_mssql_connection_pool = (config) ->
       conn.release_to_pool = ->
         log.debug 'used pool connection released back to pool'
         conn.reset( () -> pool.release(conn) )
+      conn.on 'error', (error) ->
+        log.error(error)
+        log.error "connection error, invalidting pooled connection"
+        conn.is_good = false
       conn.on 'errorMessage', (message) ->
         log.error "error from tedious connection #{JSON.stringify(message)}"
       conn.on 'connect', (err) ->
@@ -709,4 +714,5 @@ else
     config.status_dir = path.join(config.status_dir, "epiquery_status")
     fs.mkdirSync(config.status_dir) unless ( fs.existsSync(config.status_dir) )
   server = http.createServer app
+  server.setTimeout config.http_timeout_in_seconds * 1000
   server.listen config.http_port
