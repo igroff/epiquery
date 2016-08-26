@@ -70,6 +70,9 @@ connection_pools = {}
 # create unique identifiers per request
 request_counter = 0
 
+# this will be used to track the number of active requests 'in flight'
+active_requests = 0
+
 #regex to replace MS special charactes
 special_characters = {
   "8220": {"regex": new RegExp(String.fromCharCode(8220), "gi"), "replace": '"'} # “
@@ -540,7 +543,12 @@ request_handler = (req, resp) ->
   else if template_path.indexOf("mdx") isnt -1
     isMDXRequest = true
   log.debug "working template path: #{template_path}"
+  active_requests = active_requests + 1
   durationTracker = durations.start template_path
+  originalStop = durationTracker.stop
+  durationTracker.stop = () ->
+    active_requests = active_requests - 1
+    originalStop()
 
 
   create_error_response = (error, resp, template_path, template_context, rendered_template) ->
@@ -673,28 +681,37 @@ request_helper = (req, resp) ->
       resp.send(transform_for_request(o))
   request_handler req, resp
 
-app = express()
-app.use express.bodyParser()
-app.get '/stats', (req, resp, next) ->
+get_stats = () ->
   stats=
+    pid: process.pid
+    activeRequests: active_requests
     runningQueries: durations.getRunningItems()
     longestRunningQueryInstance: durations.getLongestDurations()
     durationForLastExecution: durations.getCompletedItems()
     executionByTemplate: durations.startCounts
     totalStarts: durations.totalStarts
     totalStops: durations.totalStops
-  resp.send stats
+
+app = express()
+app.use express.bodyParser()
+app.get '/stats', (req, resp, next) ->
+  cluster.worker.send "dumpstats"
+  resp.send get_stats()
 app.get '*', request_helper
 app.post '*', request_helper
 app.head '*', (req, resp) ->
   resp.send ''
 
 if cluster.isMaster
+  cluster.on 'message', (msg) ->
+    if msg is 'dumpstats'
+      _.each cluster.workers, (v, k) -> cluster.workers[k].send('dumpstats', (e) -> log.error "error sending message to worker #{e}" if e)
   fork_worker = () ->
     worker = cluster.fork()
     worker.once 'exit', (code, signal) ->
       log.error "worker died with error code #{code} and signal #{signal}"
       if signal isnt "SIGTERM"
+        log.info "restarting worker after it exited with #{code} and signal #{signal}"
         fork_worker()
 
   log.debug "Starting epi server on port: #{config.http_port}"
@@ -703,6 +720,9 @@ if cluster.isMaster
   log.info "Configuration: #{JSON.stringify config}"
   [ fork_worker() for i in [1..config.worker_count] ]
 else
+  process.on 'message', (msg) ->
+    # this is gonna get logged, so we want to trim it down
+    log.info "%j", _.pick(get_stats(), "activeRequests", "totalStarts", "totalStops", "runningQueries") if msg is 'dumpstats'
   log.info "worker starting on port #{config.http_port}"
   # if we don't have a status dir set ( it must exist ) 
   # then we'll drop the status_dir value since we'll later use it as a flag
