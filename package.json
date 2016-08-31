@@ -20,7 +20,7 @@
     "xmla4js": "git+https://github.com/glg/xmla4js.git"
   },
   "engines": {
-    "node": "0.12.7"
+    "node": "5.5.0"
   },
   "scripts": {
     "start": "make start",
