@@ -60,7 +60,7 @@ config =
   http_port: process.env.EPIQUERY_HTTP_PORT || process.env.PORT
   status_dir: process.env.EPIQUERY_STATUS_DIR || '/dev/shm'
   worker_count: process.env.EPIQUERY_WORKER_COUNT || os.cpus().length
-  max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS || 10
+  max_pooled_connections: process.env.EPIQUERY_MAX_POOLED_CONNECTIONS
   http_timeout_in_seconds: process.env.EPIQUERY_HTTP_REQUEST_TIMEOUT_IN_SECONDS || 120
 
 # currently we're only pooling mssql connections, and that's all handled down below
@@ -106,10 +106,12 @@ get_connection_config = (req, db_type) ->
     if req.method is "POST"
       req.epi_ctx.pool_key = db_type
       req.epi_ctx.connection_config = config[db_type]
+      req.epi_ctx.connection_config.max_pooled_connections = config.max_pooled_connections
       return config[db_type]
     else
       req.epi_ctx.pool_key = "#{db_type}_ro"
       req.epi_ctx.connection_config = config["#{db_type}_ro"]
+      req.epi_ctx.connection_config.max_pooled_connections = config.max_pooled_connections
       return config["#{db_type}_ro"]
 
 # a helper method to handle escaping of values for SQL Server
@@ -261,7 +263,7 @@ create_mssql_connection_pool = (config) ->
           conn.is_good = false
     validate: (pooled_object) -> pooled_object.is_good
     destroy: (pooled_object) -> pooled_object.close()
-    max: config.max_pooled_connections
+    max: config.max_pooled_connections || 50
   )
 
 create_context_for_request = (req, template_name, template_context, pool_key, connection_config, epi_config) ->
@@ -390,7 +392,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   .then( render_template_with_context )
   .then( validate_context_property('rendered_template') )
   .then( ensure_connection_pool_exists )
-  .then( get_nonpooled_connection_for_context )
+  .then( get_connection_for_context )
   .then( validate_context_property('connection') )
   .then( execute_query_with_connection )
   .then( handle_successful_query_execution(callback)
