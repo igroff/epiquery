@@ -321,7 +321,9 @@ ensure_connection_pool_exists = (ctx) ->
 
 get_connection_for_context = (ctx) ->
   new Promise( (resolve, reject) ->
+    startConnectionAcquireWait = new Date()
     ctx.connection_pools[ctx.pool_key].acquire( (err, connection) ->
+      ctx.connection_wait_time = new Date().getTime() - startConnectionAcquireWait.getTime()
       if err
         ctx.error = err
         reject ctx
@@ -380,14 +382,14 @@ execute_query_with_connection = (ctx) ->
 handle_successful_query_execution = (callback) ->
   (ctx) ->
     ctx.connection.release_to_pool()
-    callback(null, ctx.result_sets)
+    callback(null, ctx.result_sets, ctx)
 
 handle_errors_in_query_execution = (callback) ->
   (ctx) ->
     log.error("error handling query request: ", ctx.error?.stack || ctx.error || ctx)
     ctx.connection?.is_good = false
     ctx.connection?.release_to_pool()
-    callback(ctx.error || ctx, ctx.result_sets, ctx.rendered_template)
+    callback(ctx.error || ctx, ctx.result_sets, ctx)
     
 exec_sql_query = (req, template_name, template_context, callback) ->
   get_connection_config req, 'sql'
@@ -611,10 +613,10 @@ request_handler = (req, resp) ->
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
-      exec_sql_query req, template_path, context, (error, rows, rendered_template) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms"
+      exec_sql_query req, template_path, context, (error, rows, query_pipeline_context) ->
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, connWait: #{query_pipeline_context.connection_wait_time}ms"
         if error
-          resp.respond create_error_response(error, resp, template_path, context, rendered_template)
+          resp.respond create_error_response(error, resp, template_path, context, query_pipeline_context.rendered_template)
         else
           log.debug "Result Set: #{JSON.stringify(rows)}"
           if rows.length > 1 # we have multiple result sets
