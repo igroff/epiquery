@@ -99,6 +99,7 @@ get_connection_config = (req, db_type) ->
     # chances are you're not setting this, and it's required because we
     # add some 'stuff' to the query for you
     req.epi_ctx.connection_config.multipleStatements = true
+    req.epi_ctx.connection_config.max_pooled_connections = config.max_pooled_connections
     log.debug "using connection header, host: #{req.epi_ctx.connection_config.host}, user: #{req.epi_ctx.connection_config.user}"
     return req.epi_ctx.connection_config
   else
@@ -313,7 +314,7 @@ ensure_connection_pool_exists = (ctx) ->
   if not pool
     log.debug "creating pool for key #{ctx.pool_key}"
     ctx.connection_pools[ctx.pool_key] = create_mssql_connection_pool(ctx.req.epi_ctx.connection_config)
-    log.info "connection pool(#{ctx.pool_key}) max : #{ctx.connection_pools[ctx.pool_key].getMaxPoolSize()}"
+    log.info "created connection pool(#{ctx.pool_key}) max : #{ctx.connection_pools[ctx.pool_key].getMaxPoolSize()}"
   Promise.resolve ctx
 
 get_connection_for_context = (ctx) ->
