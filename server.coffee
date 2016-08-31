@@ -323,6 +323,24 @@ get_connection_for_context = (ctx) ->
         ctx.connection = connection
         resolve ctx))
 
+get_nonpooled_connection_for_context = (ctx) ->
+  new Promise (resolve, reject ) ->
+    conn = new tedious.Connection ctx.connection_config
+    conn.once 'connect', (err)->
+      log.event "connect"
+      ctx.connect_fired = true
+      if err
+        ctx.error = err
+        log.error "failed opening non pooled connection\n%s", err
+        reject(err)
+      else
+        ctx.connection = conn
+        ctx.connection.release_to_pool = () -> conn.close()
+        resolve(ctx)
+    conn.once 'error', (err) ->
+      log.event 'nonpooled connection error'
+      reject(err) if not ctx.connect_fired
+
 execute_query_with_connection = (ctx) ->
   new Promise( (resolve, reject) ->
     row_data = null
@@ -363,7 +381,7 @@ handle_errors_in_query_execution = (callback) ->
     log.error("error handling query request: ", ctx.error?.stack || ctx.error || ctx)
     ctx.connection?.is_good = false
     ctx.connection?.release_to_pool()
-    callback(ctx.error, ctx.result_sets, ctx.rendered_template)
+    callback(ctx.error || ctx, ctx.result_sets, ctx.rendered_template)
     
 exec_sql_query = (req, template_name, template_context, callback) ->
   get_connection_config req, 'sql'
@@ -372,7 +390,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   .then( render_template_with_context )
   .then( validate_context_property('rendered_template') )
   .then( ensure_connection_pool_exists )
-  .then( get_connection_for_context )
+  .then( get_nonpooled_connection_for_context )
   .then( validate_context_property('connection') )
   .then( execute_query_with_connection )
   .then( handle_successful_query_execution(callback)
