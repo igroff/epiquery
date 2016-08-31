@@ -94,7 +94,9 @@ special_characters = {
 get_connection_config = (req, db_type) ->
   conn_header = req.get "X-DB-CONNECTION"
   if conn_header
-    req.epi_ctx.pool_key = new Buffer(conn_header).toString('base64')
+    hasher = crypto.createHash 'sha1'
+    hasher.update conn_header
+    req.epi_ctx.pool_key = hasher.digest('hex')
     req.epi_ctx.connection_config = JSON.parse conn_header
     # chances are you're not setting this, and it's required because we
     # add some 'stuff' to the query for you
