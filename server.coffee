@@ -614,7 +614,7 @@ request_handler = (req, resp) ->
       # escape things so nothing nefarious gets by
       _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
       exec_sql_query req, template_path, context, (error, rows, query_pipeline_context) ->
-        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, connWait: #{query_pipeline_context.connection_wait_time}ms"
+        log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, connWait: #{query_pipeline_context.connection_wait_time}ms, pool: #{query_pipeline_context.pool_key}"
         if error
           resp.respond create_error_response(error, resp, template_path, context, query_pipeline_context.rendered_template)
         else
