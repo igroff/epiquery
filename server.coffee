@@ -313,7 +313,7 @@ ensure_connection_pool_exists = (ctx) ->
   if not pool
     log.debug "creating pool for key #{ctx.pool_key}"
     ctx.connection_pools[ctx.pool_key] = create_mssql_connection_pool(ctx.req.epi_ctx.connection_config)
-    log.info "connection pool max : #{ctx.connection_pools[ctx.pool_key].getMaxPoolSize()}"
+    log.info "connection pool(#{ctx.pool_key}) max : #{ctx.connection_pools[ctx.pool_key].getMaxPoolSize()}"
   Promise.resolve ctx
 
 get_connection_for_context = (ctx) ->
