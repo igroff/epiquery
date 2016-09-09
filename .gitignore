@@ -8,3 +8,4 @@ bin/alias
 *.swp
 node_modules/
 difftest/results
+status/
