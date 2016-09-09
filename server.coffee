@@ -299,6 +299,19 @@ render_template_with_context = (ctx) ->
       resolve ctx
   )["catch"]((err) -> ctx.error = err; Promise.reject ctx)
 
+inject_template_name = (ctx) ->
+  new Promise( (resolve, reject) ->
+      ###
+      if ctx.rendered_template.indexOf('EXEC sp_executesql') != -1
+        log.debug "******** Parameterized query detected do something smart here *************"
+      else
+      ###
+      arr = ctx.rendered_template.split('\n')
+      arr.unshift('-- ' + ctx.template_name)
+      ctx.rendered_template = arr.join('\n')
+      resolve ctx
+  )["catch"]((err) -> ctx.error = err; Promise.reject ctx)
+
 validate_context_property = (property_name) ->
   (ctx) ->
     new Promise( (resolve, reject) ->
@@ -308,7 +321,8 @@ validate_context_property = (property_name) ->
         log.error "missing expected property #{property_name} on context"
         ctx.error = new Error("missing expected property #{property_name} on context")
         # req is not serializable
-        log.debug "context: #{JSON.stringify _.omit(ctx, "req")}"
+        log.error "context: #{JSON.stringify _.omit(ctx, "req")}"
+        log.error ctx['rendered_template']
         reject ctx)
 
 ensure_connection_pool_exists = (ctx) ->
@@ -390,7 +404,7 @@ handle_errors_in_query_execution = (callback) ->
     ctx.connection?.is_good = false
     ctx.connection?.release_to_pool()
     callback(ctx.error || ctx, ctx.result_sets, ctx)
-    
+
 exec_sql_query = (req, template_name, template_context, callback) ->
   get_connection_config req, 'sql'
   create_context_for_request(req, template_name, template_context, req.epi_ctx.pool_key, req.epi_ctx.connection_config, config)
@@ -400,13 +414,14 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   .then( ensure_connection_pool_exists )
   .then( get_connection_for_context )
   .then( validate_context_property('connection') )
+  .then(inject_template_name)
   .then( execute_query_with_connection )
   .then( handle_successful_query_execution(callback)
   )["catch"]( handle_errors_in_query_execution(callback)
   )["catch"]( (err) -> log.error("error in error handler", err.stack) )
 # </mssql query handling>
 ##########################################################
-  
+
 ##########################################################
 # <mysql query handling>
 exec_mysql_query = (req, template_name, template_context, callback) ->
@@ -511,7 +526,7 @@ exec_mdx_query = (req, template_name, template_context, callback) ->
     log.error('MDX query failed to load template error=' + error)
     callback error, null
   ).done()
-  
+
 # here we will create a full path to the file that will be used to store any
 # status about a currently executing request so this will return a path that
 # should be unique to a request running in the process handling
@@ -673,7 +688,7 @@ get_requested_transform = (req) ->
     transform_name = req.query.transform
     log.debug "loading requested response transform: #{transform_name}"
     try
-      # calculate the path for the transform location, so that we can 
+      # calculate the path for the transform location, so that we can
       # clear the cache, templates are loaded on each execution so the expectation
       # will be the same for the transforms
       transform_path = path.join(config.response_transform_directory, transform_name)
@@ -750,7 +765,7 @@ else
     # this is gonna get logged, so we want to trim it down
     log.info "%j", _.pick(get_stats(), "activeRequests", "totalStarts", "totalStops", "runningQueries") if msg is 'dumpstats'
   log.info "worker starting on port #{config.http_port}"
-  # if we don't have a status dir set ( it must exist ) 
+  # if we don't have a status dir set ( it must exist )
   # then we'll drop the status_dir value since we'll later use it as a flag
   # to determine if we shold log status
   if ( !fs.existsSync(config.status_dir) )
