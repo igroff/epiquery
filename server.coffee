@@ -294,6 +294,7 @@ render_template_with_context = (ctx) ->
   new Promise( (resolve, reject) ->
       renderer = get_renderer_for_template ctx.template_name
       ctx.rendered_template = renderer ctx.template_content.toString(), ctx.template_context
+      ctx.rendered_template = "-- #{ctx.template_name}\n#{ctx.rendered_template}"
       log.debug "template context: #{JSON.stringify(ctx.template_context)}"
       log.debug "raw template: #{ctx.template_content}"
       resolve ctx

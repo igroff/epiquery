@@ -1,4 +1,4 @@
 {
   "status": "error",
-  "message": "ENOENT, open '/difftest/templates/test/no.such.file'"
+  "message": "ENOENT: no such file or directory, open '/difftest/templates/test/no.such.file'"
 }
