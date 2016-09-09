@@ -322,7 +322,6 @@ validate_context_property = (property_name) ->
         ctx.error = new Error("missing expected property #{property_name} on context")
         # req is not serializable
         log.debug "context: #{JSON.stringify _.omit(ctx, "req")}"
-        log.error ctx['rendered_template']
         reject ctx)
 
 ensure_connection_pool_exists = (ctx) ->
