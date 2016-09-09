@@ -293,22 +293,9 @@ load_template_from_disk = (ctx) ->
 render_template_with_context = (ctx) ->
   new Promise( (resolve, reject) ->
       renderer = get_renderer_for_template ctx.template_name
-      ctx.rendered_template = renderer ctx.template_content.toString(), ctx.template_context
+      ctx.rendered_template ="--" + ctx.template_name + '\n' + renderer ctx.template_content.toString(), ctx.template_context
       log.debug "template context: #{JSON.stringify(ctx.template_context)}"
       log.debug "raw template: #{ctx.template_content}"
-      resolve ctx
-  )["catch"]((err) -> ctx.error = err; Promise.reject ctx)
-
-inject_template_name = (ctx) ->
-  new Promise( (resolve, reject) ->
-      ###
-      if ctx.rendered_template.indexOf('EXEC sp_executesql') != -1
-        log.debug "******** Parameterized query detected do something smart here *************"
-      else
-      ###
-      arr = ctx.rendered_template.split('\n')
-      arr.unshift('-- ' + ctx.template_name)
-      ctx.rendered_template = arr.join('\n')
       resolve ctx
   )["catch"]((err) -> ctx.error = err; Promise.reject ctx)
 
@@ -413,7 +400,6 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   .then( ensure_connection_pool_exists )
   .then( get_connection_for_context )
   .then( validate_context_property('connection') )
-  .then(inject_template_name)
   .then( execute_query_with_connection )
   .then( handle_successful_query_execution(callback)
   )["catch"]( handle_errors_in_query_execution(callback)
