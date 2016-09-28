@@ -399,7 +399,7 @@ exec_sql_query = (req, template_name, template_context, callback) ->
   .then( render_template_with_context )
   .then( validate_context_property('rendered_template') )
   .then( ensure_connection_pool_exists )
-  .then( get_connection_for_context )
+  .then( get_nonpooled_connection_for_context )
   .then( validate_context_property('connection') )
   .then( execute_query_with_connection )
   .then( handle_successful_query_execution(callback)
