@@ -619,7 +619,7 @@ request_handler = (req, resp) ->
         if error
           resp.respond create_error_response(error, resp, template_path, context, query_pipeline_context.rendered_template)
         else
-          log.debug "Result Set: #{JSON.stringify(rows)}"
+          log.debug "Result Set: %j", rows
           if rows.length > 1 # we have multiple result sets
             log.debug "#{rows.length}(s) result sets returned"
             row_count = 0
