@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl -s http://localhost:9090/test/json_in_json_out_in_child.mustache --data '{"parent":{"child_name":"IhaveJSON","json":"{\"stuff\":\"things“\"}"}}' -H 'Content-Type: application/json' | jq --raw-output .[].json
