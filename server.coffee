@@ -119,16 +119,17 @@ get_connection_config = (req, db_type) ->
 
 # a helper method to handle escaping of values for SQL Server
 # to avoid the evil SQL Injection....
-escape_for_tsql = (value) ->
+escape_for_tsql = (topkey, value) ->
   if isNaN value
     if _.isString value
-      _.each Object.keys(special_characters), (key) ->
-        value = value.replace special_characters[key].regex,special_characters[key].replace
+      if topkey is not 'json'
+        _.each Object.keys(special_characters), (spec_char_key) ->
+            value = value.replace special_characters[spec_char_key].regex,special_characters[spec_char_key].replace
       return value.replace(/'/g, "''")
     else if _.isArray value
-      return _.map value, (item) -> escape_for_tsql item
+      return _.map value, (array_element) -> escape_for_tsql topkey, array_element
     else if _.isObject value
-      _.each value, (v,k,o) -> o[k] = escape_for_tsql v
+      _.each value, (v,k,o) -> o[k] = escape_for_tsql k, v
       return value
   return value
 
@@ -613,7 +614,7 @@ request_handler = (req, resp) ->
     else
       log.debug "processing T-SQL query"
       # escape things so nothing nefarious gets by
-      _.each context, (v, k, o) -> o[k] = escape_for_tsql(v)
+      _.each context, (v, k, o) -> o[k] = escape_for_tsql(k, v)
       exec_sql_query req, template_path, context, (error, rows, query_pipeline_context) ->
         log.info "[EXECUTION STATS] template: '#{template_path}', duration: #{durationTracker.stop()}ms, connWait: #{query_pipeline_context.connection_wait_time}ms, pool: #{query_pipeline_context.pool_key}"
         if error
