@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s http://localhost:9090/test/username -H 'X-DB-CONNECTION: {"userName":"vagrant", "password":"vagrant", "server":"localhost"}'
+curl -s http://localhost:9090/test/username -H 'X-DB-CONNECTION: {"userName":"vagrant", "password":"vagrant", "server":"'${EPIQUERY_SQL_SERVER}'"}'
