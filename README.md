@@ -1,4 +1,8 @@
-#epiquery
+
+# Epiquery - Deprecated
+
+This is epiquery, aka epiquery 1, but it is deprecated, and you should actually
+be using epiquery2 (which can fallback to epiquery1 format) here https://github.com/igroff/epiquery2
 
 ## overview
 
