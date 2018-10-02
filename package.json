@@ -4,6 +4,7 @@
   "description": "run templated queries from the http's",
   "dependencies": {
     "coffee-script": "1.9.3",
+    "debug": "3.1.0",
     "dot": "1.0.1",
     "express": "3.1.0",
     "generic-pool": "2.2.0",
