@@ -586,7 +586,7 @@ request_handler = (req, resp) ->
       result.message = error
     else
       result.message = error.message
-      log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}\n\nContext:\n  #{JSON.stringify(template_context)}"
+      log.error "#{error.message}\n#{error.stack}\nTemplate:\n  #{template_path}"
     if typeof(rendered_template) isnt undefined
       result.rendered_template = rendered_template
     # try and avoid giving too much away in our error message
